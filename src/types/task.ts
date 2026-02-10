@@ -11,6 +11,13 @@ export interface TaskDefinition {
   category: "read" | "write" | "navigate";
 }
 
+export interface TaskSuite {
+  id: string;
+  name: string;
+  description: string;
+  taskIds: string[];
+}
+
 export interface TaskResult {
   taskId: string;
   success: boolean;
