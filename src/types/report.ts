@@ -10,6 +10,7 @@ export interface TaskScore {
 export interface BenchmarkReport {
   runId: string;
   modelId: string;
+  suiteId: string;
   overallScore: number;
   successRate: number;
   avgSteps: number;
