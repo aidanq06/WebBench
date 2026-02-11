@@ -1,6 +1,56 @@
-import { TaskDefinition } from "@/types/task";
+import { TaskDefinition, TaskSuite } from "@/types/task";
 
 export const TASK_DEFINITIONS: TaskDefinition[] = [
+  // --- Easy tasks ---
+  {
+    id: "TE1",
+    title: "Navigate to dashboard",
+    description: "Navigate to the dashboard view and call done.",
+    evaluator: (_, state) => state.view.type === "dashboard",
+    difficulty: "Easy",
+    category: "navigate",
+  },
+  {
+    id: "TE2",
+    title: "Count total tickets",
+    description:
+      "Count the total number of tickets in the system and call done with that number.",
+    expectedAnswer: "8",
+    evaluator: (answer) => answer.includes("8"),
+    difficulty: "Easy",
+    category: "read",
+  },
+  {
+    id: "TE3",
+    title: "Find ticket subject",
+    description:
+      "Open ticket TKT-003 and call done with its subject line.",
+    expectedAnswer: "Feature request: dark mode",
+    evaluator: (answer) => answer.toLowerCase().includes("dark mode"),
+    difficulty: "Easy",
+    category: "read",
+  },
+  {
+    id: "TE4",
+    title: "Find any Critical ticket",
+    description:
+      "Find any ticket with Critical priority and call done with its ID.",
+    evaluator: (answer) =>
+      answer.includes("TKT-001") || answer.includes("TKT-006"),
+    difficulty: "Easy",
+    category: "read",
+  },
+  {
+    id: "TE5",
+    title: "Read user email",
+    description:
+      'Find the email address of user "Carol Lee" and call done with it.',
+    expectedAnswer: "carol@example.com",
+    evaluator: (answer) => answer.includes("carol@example.com"),
+    difficulty: "Easy",
+    category: "read",
+  },
+  // --- Standard tasks ---
   {
     id: "T1",
     title: "Find highest priority open ticket",
