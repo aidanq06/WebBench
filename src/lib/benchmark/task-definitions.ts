@@ -141,4 +141,77 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     difficulty: "Easy",
     category: "read",
   },
+  // --- Hard tasks ---
+  {
+    id: "TH1",
+    title: "Resolve all Critical tickets",
+    description:
+      "Find and mark all tickets with Critical priority as Resolved.",
+    evaluator: (_, state) =>
+      state.tickets
+        .filter((t) => t.priority === "Critical")
+        .every((t) => t.status === "Resolved"),
+    difficulty: "Hard",
+    category: "write",
+  },
+  {
+    id: "TH2",
+    title: "Reply and resolve ticket",
+    description:
+      'Reply to ticket TKT-006 with "Fixed in iOS 17.1 update" and then mark it as Resolved.',
+    evaluator: (_, state) => {
+      const ticket = state.tickets.find((t) => t.id === "TKT-006");
+      return (
+        (ticket?.replies.some((r) =>
+          r.content.toLowerCase().includes("ios 17.1")
+        ) ?? false) && ticket?.status === "Resolved"
+      );
+    },
+    difficulty: "Hard",
+    category: "write",
+  },
+  {
+    id: "TH3",
+    title: "Count tickets per user",
+    description:
+      'Count how many tickets each user has and call done with a summary like "Jane Doe:3, Bob Smith:2, Carol Lee:2, Dan Brown:1".',
+    evaluator: (answer) => {
+      const a = answer.toLowerCase();
+      return (
+        a.includes("3") &&
+        a.includes("2") &&
+        a.includes("1") &&
+        a.includes("jane") &&
+        a.includes("bob") &&
+        a.includes("carol") &&
+        a.includes("dan")
+      );
+    },
+    difficulty: "Hard",
+    category: "read",
+  },
+  {
+    id: "TH4",
+    title: "Create and navigate",
+    description:
+      'Create a new ticket for user "Dan Brown" with subject "Database migration failed" and priority Critical, then navigate to the dashboard.',
+    evaluator: (_, state) =>
+      state.tickets.some(
+        (t) =>
+          t.userId === "U4" &&
+          t.subject.toLowerCase().includes("migration") &&
+          t.priority === "Critical"
+      ) && state.view.type === "dashboard",
+    difficulty: "Hard",
+    category: "write",
+  },
+  {
+    id: "TH5",
+    title: "Bulk status update",
+    description: 'Change all tickets with status "Open" to "In Progress".',
+    evaluator: (_, state) =>
+      state.tickets.every((t) => t.status !== "Open"),
+    difficulty: "Hard",
+    category: "write",
+  },
 ];
