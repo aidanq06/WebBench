@@ -215,3 +215,42 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     category: "write",
   },
 ];
+
+export const TASK_SUITES: TaskSuite[] = [
+  {
+    id: "easy",
+    name: "easy",
+    description: "simple navigation and read-only tasks",
+    taskIds: ["TE1", "TE2", "TE3", "TE4", "TE5"],
+  },
+  {
+    id: "standard",
+    name: "standard",
+    description: "the original 8-task benchmark suite",
+    taskIds: ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8"],
+  },
+  {
+    id: "hard",
+    name: "hard",
+    description: "complex multi-step tasks",
+    taskIds: ["TH1", "TH2", "TH3", "TH4", "TH5"],
+  },
+  {
+    id: "all",
+    name: "all",
+    description: "every task across all difficulty levels",
+    taskIds: [
+      "TE1", "TE2", "TE3", "TE4", "TE5",
+      "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8",
+      "TH1", "TH2", "TH3", "TH4", "TH5",
+    ],
+  },
+];
+
+export function getTasksForSuite(suiteId: string): TaskDefinition[] {
+  const suite = TASK_SUITES.find((s) => s.id === suiteId);
+  if (!suite) return TASK_DEFINITIONS.filter((t) => t.id.startsWith("T") && !t.id.startsWith("TE") && !t.id.startsWith("TH"));
+  return suite.taskIds
+    .map((id) => TASK_DEFINITIONS.find((t) => t.id === id))
+    .filter(Boolean) as TaskDefinition[];
+}
