@@ -13,6 +13,7 @@ interface BenchmarkConfig {
 interface BenchmarkStore {
   phase: BenchmarkPhase;
   selectedModelId: string;
+  selectedSuiteId: string;
   config: BenchmarkConfig;
   loadingProgress: number;
   loadingText: string;
@@ -23,6 +24,7 @@ interface BenchmarkStore {
   error: string | null;
 
   setModel: (id: string) => void;
+  setSuite: (id: string) => void;
   setConfig: (config: Partial<BenchmarkConfig>) => void;
   startLoading: () => void;
   setLoadingProgress: (p: number, text: string) => void;
@@ -38,6 +40,7 @@ interface BenchmarkStore {
 export const useBenchmarkStore = create<BenchmarkStore>((set) => ({
   phase: "idle",
   selectedModelId: "Qwen2.5-0.5B-Instruct-q4f16_1-MLC",
+  selectedSuiteId: "standard",
   config: { maxSteps: 15, maxTimeMs: 60000 },
   loadingProgress: 0,
   loadingText: "",
@@ -48,6 +51,7 @@ export const useBenchmarkStore = create<BenchmarkStore>((set) => ({
   error: null,
 
   setModel: (id) => set({ selectedModelId: id }),
+  setSuite: (id) => set({ selectedSuiteId: id }),
   setConfig: (config) =>
     set((s) => ({ config: { ...s.config, ...config } })),
   startLoading: () =>
