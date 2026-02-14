@@ -1,4 +1,4 @@
-import { TASK_DEFINITIONS } from "./task-definitions";
+import { getTasksForSuite } from "./task-definitions";
 import { generateReport } from "./scorer";
 import { runAgentOnTask } from "@/lib/agent/agent-loop";
 import { usePortalStore } from "@/store/portal-store";
@@ -10,10 +10,11 @@ export async function runBenchmark(
   portalRef: React.RefObject<HTMLDivElement | null>
 ): Promise<BenchmarkReport> {
   const store = useBenchmarkStore.getState();
+  const tasks = getTasksForSuite(store.selectedSuiteId);
   const results: TaskResult[] = [];
 
-  for (let i = 0; i < TASK_DEFINITIONS.length; i++) {
-    const task = TASK_DEFINITIONS[i];
+  for (let i = 0; i < tasks.length; i++) {
+    const task = tasks[i];
 
     usePortalStore.getState().reset();
     await new Promise((r) => setTimeout(r, 200));
@@ -34,6 +35,7 @@ export async function runBenchmark(
   const report = generateReport(
     results,
     store.selectedModelId,
+    store.selectedSuiteId,
     crypto.randomUUID()
   );
 
