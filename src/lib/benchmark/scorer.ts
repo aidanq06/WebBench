@@ -28,6 +28,7 @@ export function scoreTask(result: TaskResult): TaskScore {
 export function generateReport(
   results: TaskResult[],
   modelId: string,
+  suiteId: string,
   runId: string
 ): BenchmarkReport {
   const taskScores = results.map(scoreTask);
@@ -47,6 +48,7 @@ export function generateReport(
   return {
     runId,
     modelId,
+    suiteId,
     overallScore,
     successRate,
     avgSteps: Math.round(avgSteps * 10) / 10,
