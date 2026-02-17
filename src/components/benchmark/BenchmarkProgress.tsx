@@ -1,15 +1,16 @@
 "use client";
 
 import { useBenchmarkStore } from "@/store/benchmark-store";
-import { TASK_DEFINITIONS } from "@/lib/benchmark/task-definitions";
+import { getTasksForSuite } from "@/lib/benchmark/task-definitions";
 import { Badge } from "@/components/ui/badge";
 
 export function BenchmarkProgress() {
-  const { currentTaskIndex, completedResults, currentStepLogs } =
+  const { currentTaskIndex, completedResults, currentStepLogs, selectedSuiteId } =
     useBenchmarkStore();
 
-  const currentTask = TASK_DEFINITIONS[currentTaskIndex];
-  const totalTasks = TASK_DEFINITIONS.length;
+  const tasks = getTasksForSuite(selectedSuiteId);
+  const currentTask = tasks[currentTaskIndex];
+  const totalTasks = tasks.length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -23,7 +24,7 @@ export function BenchmarkProgress() {
       </div>
 
       <div className="flex gap-1">
-        {TASK_DEFINITIONS.map((_, i) => {
+        {tasks.map((_, i) => {
           const result = completedResults[i];
           let bg = "bg-secondary";
           if (i === currentTaskIndex) bg = "bg-primary";
