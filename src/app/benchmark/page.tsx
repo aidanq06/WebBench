@@ -7,6 +7,7 @@ import { loadModel } from "@/lib/webllm/engine-client";
 import { runBenchmark } from "@/lib/benchmark/runner";
 import { ModelSelector } from "@/components/benchmark/ModelSelector";
 import { BenchmarkControls } from "@/components/benchmark/BenchmarkControls";
+import { SuiteSelector } from "@/components/benchmark/SuiteSelector";
 import { LoadingOverlay } from "@/components/benchmark/LoadingOverlay";
 import { BenchmarkProgress } from "@/components/benchmark/BenchmarkProgress";
 import { CustomerPortal } from "@/components/portal/CustomerPortal";
@@ -53,6 +54,7 @@ export default function BenchmarkPage() {
         {phase === "idle" && (
           <>
             <ModelSelector />
+            <SuiteSelector />
             <BenchmarkControls onRun={handleRun} />
           </>
         )}
