@@ -14,8 +14,16 @@ export function Navbar() {
           <Link href="/benchmark" className="text-muted-foreground hover:text-foreground">
             run
           </Link>
-          <a href="#tasks" className="text-muted-foreground hover:text-foreground">
+          <a href="/#tasks" className="text-muted-foreground hover:text-foreground">
             tasks
+          </a>
+          <a
+            href="https://aidanquach.dev/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            about
           </a>
           <a
             href="https://github.com/aidanq06/WebBench"
