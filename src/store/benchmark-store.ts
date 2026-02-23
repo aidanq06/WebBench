@@ -25,7 +25,7 @@ interface BenchmarkStore {
 
   setModel: (id: string) => void;
   setSuite: (id: string) => void;
-  setConfig: (config: Partial<BenchmarkConfig>) => void;
+
   startLoading: () => void;
   setLoadingProgress: (p: number, text: string) => void;
   startRunning: () => void;
@@ -52,8 +52,7 @@ export const useBenchmarkStore = create<BenchmarkStore>((set) => ({
 
   setModel: (id) => set({ selectedModelId: id }),
   setSuite: (id) => set({ selectedSuiteId: id }),
-  setConfig: (config) =>
-    set((s) => ({ config: { ...s.config, ...config } })),
+
   startLoading: () =>
     set({ phase: "loading-model", loadingProgress: 0, loadingText: "initializing..." }),
   setLoadingProgress: (p, text) =>
