@@ -11,6 +11,7 @@ import { SuiteSelector } from "@/components/benchmark/SuiteSelector";
 import { LoadingOverlay } from "@/components/benchmark/LoadingOverlay";
 import { BenchmarkProgress } from "@/components/benchmark/BenchmarkProgress";
 import { CustomerPortal } from "@/components/portal/CustomerPortal";
+import { Navbar } from "@/components/landing/Navbar";
 
 export default function BenchmarkPage() {
   const portalRef = useRef<HTMLDivElement>(null);
@@ -40,16 +41,18 @@ export default function BenchmarkPage() {
   }, [selectedModelId, router]);
 
   return (
-    <div className="flex min-h-screen flex-col items-center px-6 py-12">
-      <div className="flex w-full max-w-2xl flex-col gap-8">
-        <div>
-          <h1 className="text-2xl font-medium tracking-tighter">
-            run benchmark
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            select a model and run the task suite
-          </p>
-        </div>
+    <div className="flex min-h-screen flex-col">
+      <Navbar />
+      <div className="flex flex-1 flex-col items-center px-6 py-12">
+        <div className="flex w-full max-w-2xl flex-col gap-8">
+          <div>
+            <h1 className="text-2xl font-medium tracking-tighter">
+              run benchmark
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              select a model and run the task suite
+            </p>
+          </div>
 
         {phase === "idle" && (
           <>
@@ -80,6 +83,7 @@ export default function BenchmarkPage() {
             redirecting to report...
           </div>
         )}
+        </div>
       </div>
 
       {/* hidden portal for agent interaction */}
