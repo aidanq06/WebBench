@@ -39,7 +39,7 @@ interface BenchmarkStore {
 
 export const useBenchmarkStore = create<BenchmarkStore>((set) => ({
   phase: "idle",
-  selectedModelId: "Qwen2.5-0.5B-Instruct-q4f16_1-MLC",
+  selectedModelId: "Qwen3-0.6B-q4f16_1-MLC",
   selectedSuiteId: "standard",
   config: { maxSteps: 15, maxTimeMs: 60000 },
   loadingProgress: 0,
