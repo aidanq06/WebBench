@@ -14,6 +14,7 @@ import { StepEfficiency } from "@/components/report/StepEfficiency";
 import { TimeDistribution } from "@/components/report/TimeDistribution";
 import { TaskResultsTable } from "@/components/report/TaskResultsTable";
 import { ActionReplayLog } from "@/components/report/ActionReplayLog";
+import { Navbar } from "@/components/landing/Navbar";
 
 export default function ReportPage() {
   const params = useParams();
@@ -30,16 +31,19 @@ export default function ReportPage() {
 
   if (!report) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4">
-        <div className="text-sm text-muted-foreground">
-          report not found
+      <div className="flex min-h-screen flex-col">
+        <Navbar />
+        <div className="flex flex-1 flex-col items-center justify-center gap-4">
+          <div className="text-sm text-muted-foreground">
+            report not found
+          </div>
+          <button
+            className="border px-4 py-2 text-sm hover:bg-accent/50"
+            onClick={() => router.push("/benchmark")}
+          >
+            run a benchmark
+          </button>
         </div>
-        <button
-          className="border px-4 py-2 text-sm hover:bg-accent/50"
-          onClick={() => router.push("/benchmark")}
-        >
-          run a benchmark
-        </button>
       </div>
     );
   }
@@ -47,40 +51,42 @@ export default function ReportPage() {
   const suite = TASK_SUITES.find((s) => s.id === report.suiteId);
 
   return (
-    <div className="flex min-h-screen flex-col items-center px-6 py-12">
-      <div className="flex w-full max-w-2xl flex-col gap-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-medium tracking-tighter">
-              benchmark report
-            </h1>
-            {suite && (
-              <Badge variant="secondary" className="text-xs">
-                {suite.name}
-              </Badge>
-            )}
+    <div className="flex min-h-screen flex-col">
+      <Navbar />
+      <div className="flex flex-1 flex-col items-center px-6 py-12">
+        <div className="flex w-full max-w-2xl flex-col gap-6">
+          <div>
+            <button
+              className="mb-3 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => router.push("/benchmark")}
+            >
+              ← back to benchmark
+            </button>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-medium tracking-tighter">
+                benchmark report
+              </h1>
+              {suite && (
+                <Badge variant="secondary" className="text-xs">
+                  {suite.name}
+                </Badge>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {new Date(report.completedAt).toLocaleString()}
+            </p>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {new Date(report.completedAt).toLocaleString()}
-          </p>
+
+          <ScoreSummaryCard report={report} />
+          <TaskTimeline report={report} />
+          <MetricCards report={report} />
+          <CategoryBreakdown report={report} />
+          <TaskScoreChart report={report} />
+          <StepEfficiency report={report} />
+          <TimeDistribution report={report} />
+          <TaskResultsTable report={report} />
+          <ActionReplayLog results={report.taskResults} />
         </div>
-
-        <ScoreSummaryCard report={report} />
-        <TaskTimeline report={report} />
-        <MetricCards report={report} />
-        <CategoryBreakdown report={report} />
-        <TaskScoreChart report={report} />
-        <StepEfficiency report={report} />
-        <TimeDistribution report={report} />
-        <TaskResultsTable report={report} />
-        <ActionReplayLog results={report.taskResults} />
-
-        <button
-          className="self-start border px-4 py-2 text-sm hover:bg-accent/50"
-          onClick={() => router.push("/benchmark")}
-        >
-          run again
-        </button>
       </div>
     </div>
   );
