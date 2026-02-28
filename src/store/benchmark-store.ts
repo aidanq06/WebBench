@@ -8,7 +8,7 @@ export type BenchmarkPhase = "idle" | "loading-model" | "running" | "complete" |
 interface BenchmarkStore {
   phase: BenchmarkPhase;
   selectedModelId: string;
-  questionCount: 20 | 40;
+  questionCount: 10 | 20 | 40;
   loadingProgress: number;
   loadingText: string;
   totalQuestions: number;
@@ -20,7 +20,7 @@ interface BenchmarkStore {
   error: string | null;
 
   setModel: (id: string) => void;
-  setQuestionCount: (n: 20 | 40) => void;
+  setQuestionCount: (n: 10 | 20 | 40) => void;
 
   startLoading: () => void;
   setLoadingProgress: (p: number, text: string) => void;

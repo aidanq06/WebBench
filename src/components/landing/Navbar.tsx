@@ -14,6 +14,9 @@ export function Navbar() {
           <Link href="/benchmark" className="text-muted-foreground hover:text-foreground">
             run
           </Link>
+          <Link href="/chat" className="text-muted-foreground hover:text-foreground">
+            chat
+          </Link>
           <a href="/#tasks" className="text-muted-foreground hover:text-foreground">
             tasks
           </a>

@@ -49,14 +49,29 @@ export function HeroSection() {
           run a standardized task suite against a local llm entirely in your
           browser. no api keys, no server, no setup. powered by webgpu.
         </motion.p>
-        <motion.div variants={fadeUp}>
+        <motion.div variants={fadeUp} className="mt-4">
           <Link
             href="/benchmark"
-            className="mt-4 inline-block border bg-primary px-8 py-3 text-sm text-primary-foreground hover:bg-primary/90"
+            className="border bg-primary px-8 py-3 text-sm text-primary-foreground hover:bg-primary/90"
           >
             run benchmark
           </Link>
         </motion.div>
+      </motion.div>
+
+      {/* scroll hint */}
+      <motion.div
+        className="absolute bottom-10 left-1/2 -translate-x-1/2"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.2, duration: 0.8 }}
+        style={{ opacity }}
+      >
+        <motion.div
+          className="h-8 w-px bg-muted-foreground/30"
+          animate={{ y: [0, 6, 0] }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+        />
       </motion.div>
     </section>
   );

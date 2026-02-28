@@ -522,8 +522,8 @@ export const QUESTIONS: Question[] = [
     subject: "coding",
     difficulty: "easy",
     text: "What does `print(type([]))` output in Python? Answer with the exact output string.",
-    expectedAnswer: "<class 'list'>",
-    matchType: "exact",
+    expectedAnswer: "list",
+    matchType: "includes",
   },
   {
     id: "C11",
@@ -993,19 +993,23 @@ function shuffle<T>(arr: T[]): T[] {
 
 // Stratified sample: count questions evenly across 4 subjects and 3 difficulty levels.
 // count must be divisible by 4 (5 per subject for 20, 10 per subject for 40).
-export function getRandomQuestions(count: 20 | 40): Question[] {
+export function getRandomQuestions(count: 10 | 20 | 40): Question[] {
   const subjects = ["math", "logic", "coding", "reasoning"] as const;
   const difficulties = ["easy", "medium", "hard"] as const;
-  const perSubject = count / subjects.length; // 5 or 10
-  const perDifficulty = Math.floor(perSubject / difficulties.length); // 1 or 3
-  const remainder = perSubject - perDifficulty * difficulties.length; // 2 or 1
+  const perSubject = Math.floor(count / subjects.length);
+  const subjectRemainder = count - perSubject * subjects.length;
 
   const selected: Question[] = [];
-  for (const subject of subjects) {
+  for (let si = 0; si < subjects.length; si++) {
+    const subject = subjects[si];
+    const subjectCount = perSubject + (si < subjectRemainder ? 1 : 0);
+    const perDifficulty = Math.floor(subjectCount / difficulties.length);
+    const diffRemainder = subjectCount - perDifficulty * difficulties.length;
+
     for (let di = 0; di < difficulties.length; di++) {
       const difficulty = difficulties[di];
       const pool = shuffle(QUESTIONS.filter((q) => q.subject === subject && q.difficulty === difficulty));
-      const take = perDifficulty + (di < remainder ? 1 : 0);
+      const take = perDifficulty + (di < diffRemainder ? 1 : 0);
       selected.push(...pool.slice(0, take));
     }
   }

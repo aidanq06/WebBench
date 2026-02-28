@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { motion, useInView } from "framer-motion";
+import { motion, useInView, AnimatePresence } from "framer-motion";
 import { AVAILABLE_MODELS } from "@/lib/webllm/models";
 
 // ── Demo questions for panel 2 ───────────────────────────────────────────────
@@ -100,9 +100,24 @@ function getFamily(name: string): string {
   return "other";
 }
 
+const MAX_MODEL_SIZE = 4900; // qwen 3 8b
+
+const MODEL_INFO: Record<string, string> = {
+  "qwen 3 0.6b": "Alibaba's smallest Qwen3 model. Hybrid reasoning with thinking/non-thinking modes. Punches above its weight for basic Q&A and simple math.",
+  "llama 3.2 1b": "Meta's compact edge model. Optimized for on-device tasks. Struggles with multi-step reasoning but fast and lightweight.",
+  "qwen 2.5 1.5b": "Previous-gen Qwen with strong coding and math relative to its size. Good baseline for 1–2B comparisons.",
+  "qwen 3 1.7b": "Latest Qwen3 at 1.7B. Hybrid reasoning mode. Noticeably sharper than 1.5b Qwen2.5 on logic tasks.",
+  "gemma 2 2b": "Google DeepMind's Gemma 2. Uses novel interleaved local/global attention. Competitive with models twice its size on some benchmarks.",
+  "llama 3.2 3b": "Meta's instruction-tuned 3B. Well-rounded across categories. Good mid-range reference point for the benchmark.",
+  "qwen 3 4b": "Qwen3 4B with extended chain-of-thought support. Strong multilingual reasoning. Often closes the gap with 7B models.",
+  "qwen 2.5 7b": "Qwen2.5's flagship 7B. Trained on 18T tokens with emphasis on math and code. Solid upper-mid performer.",
+  "qwen 3 8b": "Largest model in the suite. Qwen3 8B with full reasoning capabilities. Sets the ceiling for in-browser performance.",
+};
+
 function ModelPanel() {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "0px 0px -100px 0px" });
+  const [activeCard, setActiveCard] = useState<string | null>(null);
 
   return (
     <div ref={ref} className="flex w-full flex-col gap-8">
@@ -120,26 +135,58 @@ function ModelPanel() {
       >
         {AVAILABLE_MODELS.map((model) => {
           const family = getFamily(model.displayName);
+          const sizePct = Math.round((model.estimatedSizeMB / MAX_MODEL_SIZE) * 100);
+          const isOpen = activeCard === model.id;
+          const description = MODEL_INFO[model.displayName];
           return (
             <motion.div
               key={model.id}
               variants={cardItem}
-              className="flex flex-col gap-3 border px-4 py-4"
+              whileHover={{ y: isOpen ? 0 : -2, transition: { duration: 0.15 } }}
+              onClick={() => setActiveCard(isOpen ? null : model.id)}
+              className="group flex cursor-pointer flex-col gap-3 border px-4 py-4 transition-colors hover:border-foreground/20 hover:bg-accent/30"
+              style={{ borderColor: isOpen ? "hsl(var(--foreground) / 0.2)" : undefined }}
             >
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">{model.displayName}</span>
+                <span className="font-mono text-[10px] text-muted-foreground/40">
+                  {model.parameterCount}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="border px-1.5 py-0.5 text-[10px] text-muted-foreground">
                   {family}
                 </span>
                 <span className="text-[10px] text-muted-foreground/50">
-                  {model.parameterCount}
+                  ~{formatSize(model.estimatedSizeMB)}
                 </span>
               </div>
-              <div className="text-[11px] text-muted-foreground/40">
-                ~{formatSize(model.estimatedSizeMB)} download
+              {/* relative size bar */}
+              <div className="relative h-px w-full bg-secondary">
+                <motion.div
+                  className="absolute inset-y-0 left-0 bg-muted-foreground/40"
+                  initial={{ width: 0 }}
+                  animate={inView ? { width: `${sizePct}%` } : {}}
+                  transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
+                />
               </div>
+              {/* expandable description */}
+              <AnimatePresence initial={false}>
+                {isOpen && description && (
+                  <motion.div
+                    key="desc"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="overflow-hidden"
+                  >
+                    <p className="pt-1 text-[11px] leading-relaxed text-muted-foreground/70">
+                      {description}
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           );
         })}
@@ -369,26 +416,41 @@ export function HowItWorks() {
     return () => window.removeEventListener("scroll", updateActiveStep);
   }, [updateActiveStep]);
 
+  const headingRef = useRef<HTMLDivElement>(null);
+  const headingVisible = useInView(headingRef, { once: true, margin: "0px 0px -50px 0px" });
+  const navVisible = useInView(panel1Ref, { once: true, margin: "0px 0px -200px 0px" });
+
   return (
-    <section ref={sectionRef} className="border-t px-6">
+    <section ref={sectionRef} className="px-6">
       <div className="mx-auto max-w-7xl">
-        <div className="py-10">
+        <motion.div
+          ref={headingRef}
+          className="py-10"
+          initial={{ opacity: 0, y: 12 }}
+          animate={headingVisible ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+        >
           <h2 className="text-xs text-muted-foreground">how it works</h2>
-        </div>
+        </motion.div>
 
         <div className="flex">
           {/* sticky left nav */}
           <div className="hidden w-[260px] shrink-0 sm:block">
             <div className="sticky top-24 flex flex-col gap-6 pb-24">
               {STEPS.map((step, i) => (
-                <div
+                <motion.div
                   key={step.num}
-                  className="flex items-baseline gap-3 transition-opacity duration-300"
-                  style={{ opacity: activeStep === i ? 1 : 0.2 }}
+                  className="flex items-baseline gap-3"
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={navVisible ? { opacity: activeStep === i ? 1 : 0.2, x: 0 } : {}}
+                  transition={{
+                    opacity: { duration: 0.3 },
+                    x: { duration: 0.4, delay: i * 0.08, ease: "easeOut" },
+                  }}
                 >
                   <span className="font-mono text-xs text-muted-foreground">{step.num}</span>
                   <span className="text-sm font-medium">{step.label}</span>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
