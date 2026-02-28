@@ -5,14 +5,14 @@ import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { BenchmarkReport } from "@/types/report";
 import { QuestionResult } from "@/types/task";
-import { QUESTION_SUITES, QUESTIONS } from "@/lib/benchmark/questions";
+import { QUESTIONS } from "@/lib/benchmark/questions";
 import { ScoreGauge } from "@/components/report/ScoreGauge";
 import { QuestionText } from "@/components/benchmark/QuestionText";
 import { Badge } from "@/components/ui/badge";
 import { Navbar } from "@/components/landing/Navbar";
 import { AVAILABLE_MODELS } from "@/lib/webllm/models";
 
-// ── Animated stat bar ───────────────────────────────────────────────────────
+// ── Animated stat bar (subject breakdown) ────────────────────────────────────
 function StatBar({
   label,
   correct,
@@ -28,18 +28,45 @@ function StatBar({
   return (
     <div className="flex items-center gap-3">
       <span className="w-20 shrink-0 text-xs text-muted-foreground">{label}</span>
-      <div className="relative h-1.5 flex-1 bg-secondary">
+      <div className="relative h-0.5 flex-1 bg-secondary">
         <motion.div
-          className={`absolute inset-y-0 left-0 ${pct >= 50 ? "bg-green-600" : "bg-red-600"}`}
+          className="absolute inset-y-0 left-0 bg-foreground"
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
           transition={{ duration: 0.7, delay, ease: "easeOut" }}
         />
       </div>
-      <span className="w-16 shrink-0 text-right text-xs text-muted-foreground">
+      <span className="w-12 shrink-0 text-right text-xs text-muted-foreground">
         {correct}/{total}
       </span>
     </div>
+  );
+}
+
+// ── Difficulty stat block ─────────────────────────────────────────────────────
+function DifficultyBlock({
+  label,
+  correct,
+  total,
+  delay = 0,
+}: {
+  label: string;
+  correct: number;
+  total: number;
+  delay?: number;
+}) {
+  const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay, ease: "easeOut" }}
+      className="flex flex-1 flex-col items-center gap-1 border p-5"
+    >
+      <span className="text-3xl font-medium tracking-tight">{pct}%</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-[10px] text-muted-foreground/50">{correct}/{total}</span>
+    </motion.div>
   );
 }
 
@@ -49,19 +76,18 @@ function QuestionRow({ result }: { result: QuestionResult }) {
   const question = QUESTIONS.find((q) => q.id === result.questionId);
 
   return (
-    <div className={`border-b last:border-b-0 ${open ? "border-l-2 border-l-muted-foreground/30" : ""}`}>
+    <div className={`border-b last:border-b-0 ${open ? "border-l-2 border-l-muted-foreground/20" : ""}`}>
       <button
         className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/20"
         onClick={() => setOpen((v) => !v)}
       >
-        {/* status dot */}
         <motion.div
-          className={`h-2 w-2 shrink-0 rounded-full ${result.correct ? "bg-green-600" : "bg-red-600"}`}
+          className={`h-1.5 w-1.5 shrink-0 ${result.correct ? "bg-green-600" : "bg-red-600"}`}
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: "spring", stiffness: 300 }}
         />
-        <span className="w-8 shrink-0 font-mono text-xs text-muted-foreground/60">
+        <span className="w-8 shrink-0 font-mono text-xs text-muted-foreground/50">
           {result.questionId}
         </span>
         <Badge variant="secondary" className="shrink-0 text-[10px]">
@@ -73,7 +99,7 @@ function QuestionRow({ result }: { result: QuestionResult }) {
         <span className={`flex-1 text-xs ${result.correct ? "text-foreground/70" : "text-muted-foreground"}`}>
           {result.correct ? "correct" : "incorrect"}
         </span>
-        <span className="shrink-0 text-xs text-muted-foreground/50">
+        <span className="shrink-0 text-xs text-muted-foreground/40">
           {(result.timeTakenMs / 1000).toFixed(1)}s
         </span>
         <motion.span
@@ -96,14 +122,11 @@ function QuestionRow({ result }: { result: QuestionResult }) {
             className="overflow-hidden"
           >
             <div className="flex flex-col gap-4 px-6 pb-5 pt-2">
-              {/* question text with LaTeX */}
               {question && (
                 <div className="text-sm leading-relaxed text-foreground/70">
                   <QuestionText text={question.text} />
                 </div>
               )}
-
-              {/* extracted vs expected */}
               <div className="flex gap-6 text-xs text-muted-foreground">
                 <span>
                   extracted:{" "}
@@ -116,8 +139,6 @@ function QuestionRow({ result }: { result: QuestionResult }) {
                   <span className="font-mono text-foreground/60">{result.expectedAnswer}</span>
                 </span>
               </div>
-
-              {/* full model response */}
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] text-muted-foreground">model response</span>
                 <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap bg-secondary px-3 py-3 text-xs text-muted-foreground/80">
@@ -132,7 +153,7 @@ function QuestionRow({ result }: { result: QuestionResult }) {
   );
 }
 
-// ── Stagger container ────────────────────────────────────────────────────────
+// ── Stagger container ─────────────────────────────────────────────────────────
 const container = {
   hidden: {},
   show: { transition: { staggerChildren: 0.08 } },
@@ -143,7 +164,7 @@ const fadeUp = {
   show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" as const } },
 };
 
-// ── Page ─────────────────────────────────────────────────────────────────────
+// ── Page ──────────────────────────────────────────────────────────────────────
 export default function ReportPage() {
   const params = useParams();
   const router = useRouter();
@@ -174,7 +195,6 @@ export default function ReportPage() {
     );
   }
 
-  const suite = QUESTION_SUITES.find((s) => s.id === report.suiteId);
   const model = AVAILABLE_MODELS.find((m) => m.id === report.modelId);
   const accuracy = Math.round(report.overallAccuracy * 100);
 
@@ -196,16 +216,15 @@ export default function ReportPage() {
             >
               ← back
             </button>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-medium tracking-tighter">benchmark report</h1>
-              {suite && (
-                <Badge variant="secondary" className="text-xs">
-                  {suite.name}
-                </Badge>
-              )}
-            </div>
+            <h1 className="text-2xl font-medium tracking-tighter">benchmark report</h1>
             <p className="text-xs text-muted-foreground">
-              {model?.displayName ?? report.modelId} ·{" "}
+              {model?.displayName ?? report.modelId}
+              {model && (
+                <span className="text-muted-foreground/50"> · {model.parameterCount} params</span>
+              )}
+              {" · "}
+              {report.totalQuestions} questions
+              {" · "}
               {new Date(report.completedAt).toLocaleString()}
             </p>
           </motion.div>
@@ -230,14 +249,14 @@ export default function ReportPage() {
             </div>
           </motion.div>
 
-          {/* ── subject breakdown ── */}
+          {/* ── difficulty curve ── */}
           <motion.div variants={fadeUp} className="flex flex-col gap-3">
-            <div className="text-xs text-muted-foreground">by subject</div>
-            <div className="flex flex-col gap-2">
-              {report.subjectScores.map((s, i) => (
-                <StatBar
-                  key={s.subject}
-                  label={s.subject}
+            <div className="text-xs text-muted-foreground">difficulty curve</div>
+            <div className="flex gap-2">
+              {report.difficultyScores.map((s, i) => (
+                <DifficultyBlock
+                  key={s.difficulty}
+                  label={s.difficulty}
                   correct={s.correct}
                   total={s.total}
                   delay={i * 0.08}
@@ -246,14 +265,14 @@ export default function ReportPage() {
             </div>
           </motion.div>
 
-          {/* ── difficulty breakdown ── */}
+          {/* ── subject breakdown ── */}
           <motion.div variants={fadeUp} className="flex flex-col gap-3">
-            <div className="text-xs text-muted-foreground">by difficulty</div>
-            <div className="flex flex-col gap-2">
-              {report.difficultyScores.map((s, i) => (
+            <div className="text-xs text-muted-foreground">by subject</div>
+            <div className="flex flex-col gap-2.5">
+              {report.subjectScores.map((s, i) => (
                 <StatBar
-                  key={s.difficulty}
-                  label={s.difficulty}
+                  key={s.subject}
+                  label={s.subject}
                   correct={s.correct}
                   total={s.total}
                   delay={i * 0.08}

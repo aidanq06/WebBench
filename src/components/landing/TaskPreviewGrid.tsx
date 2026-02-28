@@ -9,20 +9,8 @@ import { Subject } from "@/types/agent";
 
 const SUBJECTS: Subject[] = ["math", "logic", "coding", "reasoning"];
 
-const DIFFICULTY_COLORS = {
-  easy: "bg-green-600",
-  medium: "bg-amber-500",
-  hard: "bg-red-600",
-} as const;
-
-function subjectCounts(subject: Subject) {
-  const qs = QUESTIONS.filter((q) => q.subject === subject);
-  return {
-    total: qs.length,
-    easy: qs.filter((q) => q.difficulty === "easy").length,
-    medium: qs.filter((q) => q.difficulty === "medium").length,
-    hard: qs.filter((q) => q.difficulty === "hard").length,
-  };
+function subjectCount(subject: Subject) {
+  return QUESTIONS.filter((q) => q.subject === subject).length;
 }
 
 const cardVariants = {
@@ -66,7 +54,7 @@ export function TaskPreviewGrid() {
         {/* subject cards */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {SUBJECTS.map((subject, i) => {
-            const counts = subjectCounts(subject);
+            const total = subjectCount(subject);
             const isActive = activeSubject === subject;
 
             return (
@@ -87,24 +75,7 @@ export function TaskPreviewGrid() {
               >
                 <div className="text-sm font-medium">{subject}</div>
                 <div className="text-xs text-muted-foreground">
-                  {counts.total} questions
-                </div>
-
-                {/* difficulty dots */}
-                <div className="flex flex-wrap gap-1">
-                  {Array.from({ length: counts.easy }).map((_, j) => (
-                    <span key={`e${j}`} className="h-1.5 w-1.5 bg-green-600" />
-                  ))}
-                  {Array.from({ length: counts.medium }).map((_, j) => (
-                    <span key={`m${j}`} className="h-1.5 w-1.5 bg-amber-500" />
-                  ))}
-                  {Array.from({ length: counts.hard }).map((_, j) => (
-                    <span key={`h${j}`} className="h-1.5 w-1.5 bg-red-600" />
-                  ))}
-                </div>
-
-                <div className="text-[10px] text-muted-foreground/70">
-                  {counts.easy}e · {counts.medium}m · {counts.hard}h
+                  {total} questions
                 </div>
               </motion.button>
             );
@@ -134,9 +105,6 @@ export function TaskPreviewGrid() {
                         <span className="w-8 shrink-0 font-mono text-xs text-muted-foreground/50">
                           {q.id}
                         </span>
-                        <span
-                          className={`h-1.5 w-1.5 shrink-0 ${DIFFICULTY_COLORS[q.difficulty]}`}
-                        />
                         <Badge variant="outline" className="shrink-0 text-[10px]">
                           {q.difficulty}
                         </Badge>

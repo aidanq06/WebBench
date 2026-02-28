@@ -1,28 +1,31 @@
 import { create } from "zustand";
 import { QuestionResult } from "@/types/task";
 import { BenchmarkReport } from "@/types/report";
+import { Question } from "@/types/agent";
 
 export type BenchmarkPhase = "idle" | "loading-model" | "running" | "complete" | "error";
 
 interface BenchmarkStore {
   phase: BenchmarkPhase;
   selectedModelId: string;
-  selectedSuiteId: string;
+  questionCount: 20 | 40;
   loadingProgress: number;
   loadingText: string;
+  totalQuestions: number;
   currentQuestionIndex: number;
+  currentQuestion: Question | null;
   streamingText: string;
   completedResults: QuestionResult[];
   report: BenchmarkReport | null;
   error: string | null;
 
   setModel: (id: string) => void;
-  setSuite: (id: string) => void;
+  setQuestionCount: (n: 20 | 40) => void;
 
   startLoading: () => void;
   setLoadingProgress: (p: number, text: string) => void;
-  start: () => void;
-  startQuestion: (index: number) => void;
+  start: (total: number) => void;
+  startQuestion: (index: number, question: Question) => void;
   setStreamingText: (text: string) => void;
   advanceQuestion: (result: QuestionResult) => void;
   complete: (report: BenchmarkReport) => void;
@@ -33,26 +36,28 @@ interface BenchmarkStore {
 export const useBenchmarkStore = create<BenchmarkStore>((set) => ({
   phase: "idle",
   selectedModelId: "Qwen3-0.6B-q4f16_1-MLC",
-  selectedSuiteId: "all",
+  questionCount: 20,
   loadingProgress: 0,
   loadingText: "",
+  totalQuestions: 0,
   currentQuestionIndex: 0,
+  currentQuestion: null,
   streamingText: "",
   completedResults: [],
   report: null,
   error: null,
 
   setModel: (id) => set({ selectedModelId: id }),
-  setSuite: (id) => set({ selectedSuiteId: id }),
+  setQuestionCount: (n) => set({ questionCount: n }),
 
   startLoading: () =>
     set({ phase: "loading-model", loadingProgress: 0, loadingText: "initializing..." }),
   setLoadingProgress: (p, text) =>
     set({ loadingProgress: p, loadingText: text }),
-  start: () =>
-    set({ phase: "running", currentQuestionIndex: 0, completedResults: [], streamingText: "" }),
-  startQuestion: (index) =>
-    set({ currentQuestionIndex: index, streamingText: "" }),
+  start: (total) =>
+    set({ phase: "running", totalQuestions: total, currentQuestionIndex: 0, completedResults: [], streamingText: "", currentQuestion: null }),
+  startQuestion: (index, question) =>
+    set({ currentQuestionIndex: index, currentQuestion: question, streamingText: "" }),
   setStreamingText: (text) =>
     set({ streamingText: text }),
   advanceQuestion: (result) =>
@@ -66,7 +71,9 @@ export const useBenchmarkStore = create<BenchmarkStore>((set) => ({
       phase: "idle",
       loadingProgress: 0,
       loadingText: "",
+      totalQuestions: 0,
       currentQuestionIndex: 0,
+      currentQuestion: null,
       streamingText: "",
       completedResults: [],
       report: null,

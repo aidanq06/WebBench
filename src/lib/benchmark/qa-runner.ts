@@ -1,4 +1,4 @@
-import { getRandomQuestionsForSuite } from "./questions";
+import { getRandomQuestions } from "./questions";
 import { generateReport } from "./scorer";
 import { generateStream } from "@/lib/webllm/engine-client";
 import { useBenchmarkStore } from "@/store/benchmark-store";
@@ -25,18 +25,18 @@ function checkAnswer(extracted: string, expected: string, matchType: Question["m
 
 export async function runQABenchmark(
   modelId: string,
-  suiteId: string,
+  questionCount: 20 | 40,
   runId: string
 ): Promise<void> {
   const store = useBenchmarkStore.getState();
-  const questions = getRandomQuestionsForSuite(suiteId);
+  const questions = getRandomQuestions(questionCount);
   const results: QuestionResult[] = [];
 
-  store.start();
+  store.start(questions.length);
 
   for (let i = 0; i < questions.length; i++) {
     const question = questions[i];
-    store.startQuestion(i);
+    store.startQuestion(i, question);
 
     const messages = [
       { role: "system", content: SYSTEM_PROMPT },
@@ -80,7 +80,7 @@ export async function runQABenchmark(
     await new Promise((r) => setTimeout(r, 1200));
   }
 
-  const report = generateReport(results, modelId, suiteId, runId);
+  const report = generateReport(results, modelId, String(questionCount), runId);
   sessionStorage.setItem(`report-${runId}`, JSON.stringify(report));
   store.complete(report);
 }

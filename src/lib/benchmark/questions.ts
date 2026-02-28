@@ -1,5 +1,4 @@
 import { Question } from "@/types/agent";
-import { QuestionSuite } from "@/types/task";
 
 export const QUESTIONS: Question[] = [
   // ── Math ──────────────────────────────────────────────────────────────────
@@ -992,64 +991,24 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-export const QUESTION_SUITES: QuestionSuite[] = [
-  {
-    id: "math",
-    name: "math",
-    description: "arithmetic, algebra, calculus, probability",
-    questionIds: QUESTIONS.filter((q) => q.subject === "math").map((q) => q.id),
-  },
-  {
-    id: "logic",
-    name: "logic",
-    description: "deductive reasoning, syllogisms, constraint puzzles",
-    questionIds: QUESTIONS.filter((q) => q.subject === "logic").map((q) => q.id),
-  },
-  {
-    id: "coding",
-    name: "coding",
-    description: "python, javascript, algorithms, tracing",
-    questionIds: QUESTIONS.filter((q) => q.subject === "coding").map((q) => q.id),
-  },
-  {
-    id: "reasoning",
-    name: "reasoning",
-    description: "lateral thinking, cognitive biases, insight problems",
-    questionIds: QUESTIONS.filter((q) => q.subject === "reasoning").map((q) => q.id),
-  },
-  {
-    id: "all",
-    name: "all subjects",
-    description: "15 random questions across math, logic, coding, and reasoning",
-    questionIds: QUESTIONS.map((q) => q.id),
-  },
-];
-
-export function getQuestionsForSuite(suiteId: string): Question[] {
-  const suite = QUESTION_SUITES.find((s) => s.id === suiteId);
-  if (!suite) return QUESTIONS;
-  return suite.questionIds.map((id) => QUESTIONS.find((q) => q.id === id)!).filter(Boolean);
-}
-
-export function getRandomQuestionsForSuite(suiteId: string, count?: number): Question[] {
-  if (suiteId !== "all") {
-    // subject suite: shuffle and return 10 random from pool of 30
-    const qs = shuffle(QUESTIONS.filter((q) => q.subject === suiteId));
-    return qs.slice(0, 10);
-  }
-
-  // "all" suite: stratified sample — pick proportionally from each subject
+// Stratified sample: count questions evenly across 4 subjects and 3 difficulty levels.
+// count must be divisible by 4 (5 per subject for 20, 10 per subject for 40).
+export function getRandomQuestions(count: 20 | 40): Question[] {
   const subjects = ["math", "logic", "coding", "reasoning"] as const;
-  const total = count ?? 15;
-  const perSubject = Math.floor(total / subjects.length); // 3 each = 12
-  const remainder = total - perSubject * subjects.length; // 3 extras
+  const difficulties = ["easy", "medium", "hard"] as const;
+  const perSubject = count / subjects.length; // 5 or 10
+  const perDifficulty = Math.floor(perSubject / difficulties.length); // 1 or 3
+  const remainder = perSubject - perDifficulty * difficulties.length; // 2 or 1
 
   const selected: Question[] = [];
-  subjects.forEach((subject, i) => {
-    const pool = shuffle(QUESTIONS.filter((q) => q.subject === subject));
-    const take = perSubject + (i < remainder ? 1 : 0);
-    selected.push(...pool.slice(0, take));
-  });
+  for (const subject of subjects) {
+    for (let di = 0; di < difficulties.length; di++) {
+      const difficulty = difficulties[di];
+      const pool = shuffle(QUESTIONS.filter((q) => q.subject === subject && q.difficulty === difficulty));
+      const take = perDifficulty + (di < remainder ? 1 : 0);
+      selected.push(...pool.slice(0, take));
+    }
+  }
 
   return shuffle(selected);
 }

@@ -3,25 +3,23 @@
 import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useBenchmarkStore } from "@/store/benchmark-store";
-import { getQuestionsForSuite } from "@/lib/benchmark/questions";
 import { Badge } from "@/components/ui/badge";
 import { QuestionText } from "./QuestionText";
 
 export function BenchmarkProgress() {
   const {
     currentQuestionIndex,
+    currentQuestion,
+    totalQuestions,
     completedResults,
     streamingText,
-    selectedSuiteId,
   } = useBenchmarkStore();
 
   const streamEndRef = useRef<HTMLDivElement>(null);
-  const questions = getQuestionsForSuite(selectedSuiteId);
-  const currentQuestion = questions[currentQuestionIndex];
-  const totalQuestions = questions.length;
+  const correctCount = completedResults.filter((r) => r.correct).length;
+  const progressPct = totalQuestions > 0 ? (completedResults.length / totalQuestions) * 100 : 0;
   const lastResult = completedResults[completedResults.length - 1];
-  const isShowingResult =
-    lastResult && lastResult.questionId === currentQuestion?.id;
+  const isShowingResult = lastResult && lastResult.questionId === currentQuestion?.id;
 
   useEffect(() => {
     streamEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -29,46 +27,21 @@ export function BenchmarkProgress() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* header */}
-      <div className="flex items-center justify-between">
-        <div className="text-sm">
-          question {currentQuestionIndex + 1} of {totalQuestions}
+      {/* progress bar + counter */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>
+            question {currentQuestionIndex + 1} / {totalQuestions}
+          </span>
+          <span>{correctCount} correct</span>
         </div>
-        <div className="text-xs text-muted-foreground">
-          {completedResults.filter((r) => r.correct).length} correct
+        <div className="relative h-0.5 w-full bg-secondary">
+          <motion.div
+            className="absolute inset-y-0 left-0 bg-foreground"
+            animate={{ width: `${progressPct}%` }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+          />
         </div>
-      </div>
-
-      {/* progress pips */}
-      <div className="flex gap-1">
-        {questions.map((_, i) => {
-          const result = completedResults[i];
-          const isActive = i === currentQuestionIndex && !result;
-          const correct = result?.correct === true;
-          const incorrect = result?.correct === false;
-
-          return (
-            <motion.div
-              key={i}
-              className="h-1.5 flex-1"
-              animate={{
-                backgroundColor: isActive
-                  ? "var(--primary)"
-                  : correct
-                    ? "#16a34a"
-                    : incorrect
-                      ? "#dc2626"
-                      : "var(--secondary)",
-                opacity: isActive ? [1, 0.4, 1] : 1,
-              }}
-              transition={
-                isActive
-                  ? { opacity: { repeat: Infinity, duration: 1.5 } }
-                  : { duration: 0.3 }
-              }
-            />
-          );
-        })}
       </div>
 
       {/* question card */}
@@ -79,7 +52,7 @@ export function BenchmarkProgress() {
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.35, ease: "easeOut" }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
             className="flex flex-col gap-4 border p-8"
           >
             <div className="flex items-center gap-2">
@@ -89,7 +62,7 @@ export function BenchmarkProgress() {
               <Badge variant="outline" className="text-[10px]">
                 {currentQuestion.difficulty}
               </Badge>
-              <span className="ml-auto text-[10px] text-muted-foreground">
+              <span className="ml-auto font-mono text-[10px] text-muted-foreground/50">
                 {currentQuestion.id}
               </span>
             </div>
@@ -108,9 +81,7 @@ export function BenchmarkProgress() {
             animate={{ opacity: 1 }}
             className="border-l-2 border-muted-foreground/20 pl-3"
           >
-            <div className="mb-1 text-[10px] text-muted-foreground">
-              model response
-            </div>
+            <div className="mb-1 text-[10px] text-muted-foreground">model response</div>
             <div className="max-h-48 overflow-y-auto">
               <pre className="whitespace-pre-wrap text-xs text-muted-foreground/80">
                 {streamingText}
@@ -129,7 +100,7 @@ export function BenchmarkProgress() {
             initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.25 }}
             className={`flex flex-col gap-1 border p-4 ${
               lastResult.correct
                 ? "border-green-600/50 bg-green-600/5"
@@ -146,13 +117,13 @@ export function BenchmarkProgress() {
             <div className="flex gap-4 text-xs text-muted-foreground">
               <span>
                 extracted:{" "}
-                <span className="text-foreground">
+                <span className="font-mono text-foreground">
                   {lastResult.extractedAnswer || "(none)"}
                 </span>
               </span>
               <span>
                 expected:{" "}
-                <span className="text-foreground">
+                <span className="font-mono text-foreground">
                   {lastResult.expectedAnswer}
                 </span>
               </span>
