@@ -1,25 +1,18 @@
 import { create } from "zustand";
-import { StepLog } from "@/types/agent";
-import { TaskResult } from "@/types/task";
+import { QuestionResult } from "@/types/task";
 import { BenchmarkReport } from "@/types/report";
 
 export type BenchmarkPhase = "idle" | "loading-model" | "running" | "complete" | "error";
-
-interface BenchmarkConfig {
-  maxSteps: number;
-  maxTimeMs: number;
-}
 
 interface BenchmarkStore {
   phase: BenchmarkPhase;
   selectedModelId: string;
   selectedSuiteId: string;
-  config: BenchmarkConfig;
   loadingProgress: number;
   loadingText: string;
-  currentTaskIndex: number;
-  currentStepLogs: StepLog[];
-  completedResults: TaskResult[];
+  currentQuestionIndex: number;
+  streamingText: string;
+  completedResults: QuestionResult[];
   report: BenchmarkReport | null;
   error: string | null;
 
@@ -28,10 +21,10 @@ interface BenchmarkStore {
 
   startLoading: () => void;
   setLoadingProgress: (p: number, text: string) => void;
-  startRunning: () => void;
-  startTask: (index: number) => void;
-  addStep: (log: StepLog) => void;
-  advanceTask: (result: TaskResult) => void;
+  start: () => void;
+  startQuestion: (index: number) => void;
+  setStreamingText: (text: string) => void;
+  advanceQuestion: (result: QuestionResult) => void;
   complete: (report: BenchmarkReport) => void;
   setError: (msg: string) => void;
   reset: () => void;
@@ -40,12 +33,11 @@ interface BenchmarkStore {
 export const useBenchmarkStore = create<BenchmarkStore>((set) => ({
   phase: "idle",
   selectedModelId: "Qwen3-0.6B-q4f16_1-MLC",
-  selectedSuiteId: "standard",
-  config: { maxSteps: 15, maxTimeMs: 60000 },
+  selectedSuiteId: "all",
   loadingProgress: 0,
   loadingText: "",
-  currentTaskIndex: 0,
-  currentStepLogs: [],
+  currentQuestionIndex: 0,
+  streamingText: "",
   completedResults: [],
   report: null,
   error: null,
@@ -57,13 +49,13 @@ export const useBenchmarkStore = create<BenchmarkStore>((set) => ({
     set({ phase: "loading-model", loadingProgress: 0, loadingText: "initializing..." }),
   setLoadingProgress: (p, text) =>
     set({ loadingProgress: p, loadingText: text }),
-  startRunning: () =>
-    set({ phase: "running", currentTaskIndex: 0, completedResults: [], currentStepLogs: [] }),
-  startTask: (index) =>
-    set({ currentTaskIndex: index, currentStepLogs: [] }),
-  addStep: (log) =>
-    set((s) => ({ currentStepLogs: [...s.currentStepLogs, log] })),
-  advanceTask: (result) =>
+  start: () =>
+    set({ phase: "running", currentQuestionIndex: 0, completedResults: [], streamingText: "" }),
+  startQuestion: (index) =>
+    set({ currentQuestionIndex: index, streamingText: "" }),
+  setStreamingText: (text) =>
+    set({ streamingText: text }),
+  advanceQuestion: (result) =>
     set((s) => ({ completedResults: [...s.completedResults, result] })),
   complete: (report) =>
     set({ phase: "complete", report }),
@@ -74,8 +66,8 @@ export const useBenchmarkStore = create<BenchmarkStore>((set) => ({
       phase: "idle",
       loadingProgress: 0,
       loadingText: "",
-      currentTaskIndex: 0,
-      currentStepLogs: [],
+      currentQuestionIndex: 0,
+      streamingText: "",
       completedResults: [],
       report: null,
       error: null,

@@ -1,23 +1,30 @@
-import { TaskResult } from "./task";
+import { QuestionResult } from "./task";
+import { Subject, Difficulty } from "./agent";
 
-export interface TaskScore {
-  taskId: string;
-  rawScore: number;
-  successScore: number;
-  efficiencyScore: number;
+export interface SubjectScore {
+  subject: Subject;
+  correct: number;
+  total: number;
+  accuracy: number;
+}
+
+export interface DifficultyScore {
+  difficulty: Difficulty;
+  correct: number;
+  total: number;
+  accuracy: number;
 }
 
 export interface BenchmarkReport {
   runId: string;
   modelId: string;
   suiteId: string;
-  overallScore: number;
-  successRate: number;
-  avgSteps: number;
+  overallAccuracy: number;
+  correctCount: number;
+  totalQuestions: number;
   avgTimeMs: number;
-  successCount: number;
-  totalTasks: number;
-  taskResults: TaskResult[];
-  taskScores: TaskScore[];
+  subjectScores: SubjectScore[];
+  difficultyScores: DifficultyScore[];
+  questionResults: QuestionResult[];
   completedAt: string;
 }

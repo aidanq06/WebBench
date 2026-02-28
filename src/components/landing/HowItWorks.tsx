@@ -7,12 +7,12 @@ const steps = [
   {
     num: "02",
     title: "run the suite",
-    desc: "the agent attempts 8 tasks inside a simulated customer support portal",
+    desc: "the model answers 20 knowledge questions across math, logic, coding, and reasoning",
   },
   {
     num: "03",
     title: "get your report",
-    desc: "see success rate, efficiency, and a full action replay for every task",
+    desc: "see accuracy by subject and difficulty, with full model responses for every question",
   },
 ];
 

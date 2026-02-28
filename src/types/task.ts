@@ -1,29 +1,19 @@
-import { PortalState } from "./portal";
-import { StepLog } from "./agent";
+import { Subject, Difficulty } from "./agent";
 
-export interface TaskDefinition {
-  id: string;
-  title: string;
-  description: string;
-  expectedAnswer?: string;
-  evaluator: (agentAnswer: string, finalState: PortalState) => boolean;
-  difficulty: "Easy" | "Medium" | "Hard";
-  category: "read" | "write" | "navigate";
+export interface QuestionResult {
+  questionId: string;
+  subject: Subject;
+  difficulty: Difficulty;
+  correct: boolean;
+  modelResponse: string;
+  extractedAnswer: string;
+  expectedAnswer: string;
+  timeTakenMs: number;
 }
 
-export interface TaskSuite {
+export interface QuestionSuite {
   id: string;
   name: string;
   description: string;
-  taskIds: string[];
-}
-
-export interface TaskResult {
-  taskId: string;
-  success: boolean;
-  stepsUsed: number;
-  timeTakenMs: number;
-  finalAnswer: string;
-  stepLogs: StepLog[];
-  maxSteps: number;
+  questionIds: string[];
 }

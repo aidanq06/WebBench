@@ -1,70 +1,188 @@
 "use client";
 
 import { useState } from "react";
-import {
-  TASK_DEFINITIONS,
-  TASK_SUITES,
-  getTasksForSuite,
-} from "@/lib/benchmark/task-definitions";
+import { motion, AnimatePresence } from "framer-motion";
+import { QUESTIONS } from "@/lib/benchmark/questions";
 import { Badge } from "@/components/ui/badge";
+import { QuestionText } from "@/components/benchmark/QuestionText";
+import { Subject } from "@/types/agent";
+
+const SUBJECTS: Subject[] = ["math", "logic", "coding", "reasoning"];
+
+const DIFFICULTY_COLORS = {
+  easy: "bg-green-600",
+  medium: "bg-amber-500",
+  hard: "bg-red-600",
+} as const;
+
+function subjectCounts(subject: Subject) {
+  const qs = QUESTIONS.filter((q) => q.subject === subject);
+  return {
+    total: qs.length,
+    easy: qs.filter((q) => q.difficulty === "easy").length,
+    medium: qs.filter((q) => q.difficulty === "medium").length,
+    hard: qs.filter((q) => q.difficulty === "hard").length,
+  };
+}
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 10 },
+  show: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.35, delay: i * 0.07, ease: "easeOut" as const },
+  }),
+};
 
 export function TaskPreviewGrid() {
-  const [activeSuite, setActiveSuite] = useState("all");
-  const tasks = getTasksForSuite(activeSuite);
+  const [activeSubject, setActiveSubject] = useState<Subject | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const activeQuestions = activeSubject
+    ? QUESTIONS.filter((q) => q.subject === activeSubject)
+    : [];
+
+  function handleCardClick(subject: Subject) {
+    if (activeSubject === subject) {
+      setActiveSubject(null);
+      setOpenId(null);
+    } else {
+      setActiveSubject(subject);
+      setOpenId(null);
+    }
+  }
 
   return (
     <section id="tasks" className="border-t px-6 py-12">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
+        {/* header */}
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-medium tracking-tight">tasks</h2>
+          <h2 className="text-lg font-medium tracking-tight">questions</h2>
           <span className="text-xs text-muted-foreground">
-            {TASK_DEFINITIONS.length} tasks across {TASK_SUITES.length - 1}{" "}
-            suites
+            {QUESTIONS.length} questions · 4 subjects · click a card to explore
           </span>
         </div>
 
-        <div className="flex gap-1">
-          {TASK_SUITES.map((suite) => (
-            <button
-              key={suite.id}
-              className={`border px-3 py-1.5 text-xs hover:bg-accent/50 ${
-                activeSuite === suite.id
-                  ? "bg-accent text-accent-foreground"
-                  : ""
-              }`}
-              onClick={() => setActiveSuite(suite.id)}
-            >
-              {suite.name} ({suite.taskIds.length})
-            </button>
-          ))}
+        {/* subject cards */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {SUBJECTS.map((subject, i) => {
+            const counts = subjectCounts(subject);
+            const isActive = activeSubject === subject;
+
+            return (
+              <motion.button
+                key={subject}
+                custom={i}
+                variants={cardVariants}
+                initial="hidden"
+                animate="show"
+                onClick={() => handleCardClick(subject)}
+                className={`flex flex-col gap-3 border p-5 text-left transition-colors hover:bg-accent/30 ${
+                  isActive
+                    ? "border-foreground/30 bg-accent"
+                    : activeSubject !== null
+                      ? "opacity-50"
+                      : ""
+                }`}
+              >
+                <div className="text-sm font-medium">{subject}</div>
+                <div className="text-xs text-muted-foreground">
+                  {counts.total} questions
+                </div>
+
+                {/* difficulty dots */}
+                <div className="flex flex-wrap gap-1">
+                  {Array.from({ length: counts.easy }).map((_, j) => (
+                    <span key={`e${j}`} className="h-1.5 w-1.5 bg-green-600" />
+                  ))}
+                  {Array.from({ length: counts.medium }).map((_, j) => (
+                    <span key={`m${j}`} className="h-1.5 w-1.5 bg-amber-500" />
+                  ))}
+                  {Array.from({ length: counts.hard }).map((_, j) => (
+                    <span key={`h${j}`} className="h-1.5 w-1.5 bg-red-600" />
+                  ))}
+                </div>
+
+                <div className="text-[10px] text-muted-foreground/70">
+                  {counts.easy}e · {counts.medium}m · {counts.hard}h
+                </div>
+              </motion.button>
+            );
+          })}
         </div>
 
-        <div className="flex flex-col">
-          {tasks.map((task) => (
-            <div
-              key={task.id}
-              className="flex items-start gap-4 border-b px-4 py-4 last:border-b-0"
+        {/* expanded question list */}
+        <AnimatePresence initial={false}>
+          {activeSubject && (
+            <motion.div
+              key={activeSubject}
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="overflow-hidden"
             >
-              <span className="mt-0.5 shrink-0 text-xs text-muted-foreground">
-                {task.id}
-              </span>
-              <div className="flex flex-1 flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{task.title}</span>
-                  <Badge variant="secondary" className="text-xs">
-                    {task.difficulty.toLowerCase()}
-                  </Badge>
-                  <Badge variant="secondary" className="text-xs">
-                    {task.category}
-                  </Badge>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {task.description}
-                </span>
+              <div className="flex flex-col border">
+                {activeQuestions.map((q) => {
+                  const isOpen = openId === q.id;
+                  return (
+                    <div key={q.id} className="border-b last:border-b-0">
+                      <button
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/20"
+                        onClick={() => setOpenId(isOpen ? null : q.id)}
+                      >
+                        <span className="w-8 shrink-0 font-mono text-xs text-muted-foreground/50">
+                          {q.id}
+                        </span>
+                        <span
+                          className={`h-1.5 w-1.5 shrink-0 ${DIFFICULTY_COLORS[q.difficulty]}`}
+                        />
+                        <Badge variant="outline" className="shrink-0 text-[10px]">
+                          {q.difficulty}
+                        </Badge>
+                        <span className="flex-1 truncate text-xs text-muted-foreground">
+                          {q.text.replace(/\$\$?[^$]+\$\$?/g, "…").replace(/\n/g, " ")}
+                        </span>
+                        <motion.span
+                          animate={{ rotate: isOpen ? 90 : 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="shrink-0 text-[10px] text-muted-foreground/40"
+                        >
+                          ›
+                        </motion.span>
+                      </button>
+
+                      <AnimatePresence initial={false}>
+                        {isOpen && (
+                          <motion.div
+                            key="content"
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.22, ease: "easeInOut" }}
+                            className="overflow-hidden"
+                          >
+                            <div className="ml-4 flex flex-col gap-3 border-l-2 border-muted-foreground/20 px-4 py-4">
+                              <div className="text-sm leading-relaxed text-foreground/70">
+                                <QuestionText text={q.text} />
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                expected:{" "}
+                                <span className="font-mono text-foreground/60">
+                                  {q.expectedAnswer}
+                                </span>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-          ))}
-        </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </section>
   );

@@ -1,139 +1,165 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useBenchmarkStore } from "@/store/benchmark-store";
-import { getTasksForSuite } from "@/lib/benchmark/task-definitions";
+import { getQuestionsForSuite } from "@/lib/benchmark/questions";
 import { Badge } from "@/components/ui/badge";
-import { CustomerPortal } from "@/components/portal/CustomerPortal";
+import { QuestionText } from "./QuestionText";
 
-const PORTAL_SCALE = 0.55;
-const PORTAL_WIDTH = 480;
-const PORTAL_HEIGHT = 720;
+export function BenchmarkProgress() {
+  const {
+    currentQuestionIndex,
+    completedResults,
+    streamingText,
+    selectedSuiteId,
+  } = useBenchmarkStore();
 
-export function BenchmarkProgress({
-  portalRef,
-}: {
-  portalRef: React.RefObject<HTMLDivElement | null>;
-}) {
-  const { currentTaskIndex, completedResults, currentStepLogs, selectedSuiteId } =
-    useBenchmarkStore();
-  const logEndRef = useRef<HTMLDivElement>(null);
-
-  const tasks = getTasksForSuite(selectedSuiteId);
-  const currentTask = tasks[currentTaskIndex];
-  const totalTasks = tasks.length;
-  const latestLog = currentStepLogs[currentStepLogs.length - 1];
+  const streamEndRef = useRef<HTMLDivElement>(null);
+  const questions = getQuestionsForSuite(selectedSuiteId);
+  const currentQuestion = questions[currentQuestionIndex];
+  const totalQuestions = questions.length;
+  const lastResult = completedResults[completedResults.length - 1];
+  const isShowingResult =
+    lastResult && lastResult.questionId === currentQuestion?.id;
 
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [currentStepLogs.length]);
+    streamEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [streamingText]);
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* progress bar */}
+    <div className="flex flex-col gap-6">
+      {/* header */}
       <div className="flex items-center justify-between">
         <div className="text-sm">
-          task {currentTaskIndex + 1} of {totalTasks}
+          question {currentQuestionIndex + 1} of {totalQuestions}
         </div>
         <div className="text-xs text-muted-foreground">
-          {completedResults.filter((r) => r.success).length} passed
+          {completedResults.filter((r) => r.correct).length} correct
         </div>
       </div>
 
+      {/* progress pips */}
       <div className="flex gap-1">
-        {tasks.map((_, i) => {
+        {questions.map((_, i) => {
           const result = completedResults[i];
-          let bg = "bg-secondary";
-          if (i === currentTaskIndex) bg = "bg-primary animate-pulse";
-          else if (result?.success) bg = "bg-green-600";
-          else if (result && !result.success) bg = "bg-red-600";
-          return <div key={i} className={`h-1.5 flex-1 transition-colors duration-300 ${bg}`} />;
+          const isActive = i === currentQuestionIndex && !result;
+          const correct = result?.correct === true;
+          const incorrect = result?.correct === false;
+
+          return (
+            <motion.div
+              key={i}
+              className="h-1.5 flex-1"
+              animate={{
+                backgroundColor: isActive
+                  ? "var(--primary)"
+                  : correct
+                    ? "#16a34a"
+                    : incorrect
+                      ? "#dc2626"
+                      : "var(--secondary)",
+                opacity: isActive ? [1, 0.4, 1] : 1,
+              }}
+              transition={
+                isActive
+                  ? { opacity: { repeat: Infinity, duration: 1.5 } }
+                  : { duration: 0.3 }
+              }
+            />
+          );
         })}
       </div>
 
-      {/* task info */}
-      {currentTask && (
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">{currentTask.title}</span>
-          <Badge variant="secondary" className="text-xs">
-            {currentTask.difficulty.toLowerCase()}
-          </Badge>
-        </div>
-      )}
-
-      {/* main content: portal + activity log */}
-      <div className="flex gap-4">
-        {/* live portal preview */}
-        <div
-          className="shrink-0 overflow-hidden border"
-          style={{
-            width: PORTAL_WIDTH * PORTAL_SCALE,
-            height: PORTAL_HEIGHT * PORTAL_SCALE,
-          }}
-        >
-          <div
-            className="pointer-events-none origin-top-left"
-            style={{ transform: `scale(${PORTAL_SCALE})` }}
+      {/* question card */}
+      <AnimatePresence mode="wait">
+        {currentQuestion && (
+          <motion.div
+            key={currentQuestion.id}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+            className="flex flex-col gap-4 border p-8"
           >
-            <CustomerPortal ref={portalRef} />
-          </div>
-        </div>
-
-        {/* activity feed */}
-        <div className="flex min-w-0 flex-1 flex-col gap-3">
-          {/* agent thought bubble */}
-          {latestLog && (
-            <div
-              key={latestLog.stepNumber}
-              className="animate-fade-in border-l-2 border-muted-foreground/30 pl-3"
-            >
-              <div className="text-[10px] text-muted-foreground">thinking</div>
-              <div className="text-xs italic text-muted-foreground">
-                {latestLog.action.reason}
-              </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-[10px]">
+                {currentQuestion.subject}
+              </Badge>
+              <Badge variant="outline" className="text-[10px]">
+                {currentQuestion.difficulty}
+              </Badge>
+              <span className="ml-auto text-[10px] text-muted-foreground">
+                {currentQuestion.id}
+              </span>
             </div>
-          )}
+            <div className="text-base leading-relaxed text-foreground/70">
+              <QuestionText text={currentQuestion.text} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-          {/* step log */}
-          <div className="flex max-h-72 flex-col gap-1.5 overflow-y-auto">
-            {currentStepLogs.map((log) => (
-              <div
-                key={log.stepNumber}
-                className="animate-fade-in flex items-start gap-2 text-xs"
-              >
-                <span className="shrink-0 text-muted-foreground/50">
-                  {log.stepNumber}
+      {/* streaming output */}
+      <AnimatePresence>
+        {streamingText && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="border-l-2 border-muted-foreground/20 pl-3"
+          >
+            <div className="mb-1 text-[10px] text-muted-foreground">
+              model response
+            </div>
+            <div className="max-h-48 overflow-y-auto">
+              <pre className="whitespace-pre-wrap text-xs text-muted-foreground/80">
+                {streamingText}
+              </pre>
+              <div ref={streamEndRef} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* result flash */}
+      <AnimatePresence>
+        {isShowingResult && (
+          <motion.div
+            key={lastResult.questionId + "-result"}
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className={`flex flex-col gap-1 border p-4 ${
+              lastResult.correct
+                ? "border-green-600/50 bg-green-600/5"
+                : "border-red-600/50 bg-red-600/5"
+            }`}
+          >
+            <div
+              className={`text-xs font-medium ${
+                lastResult.correct ? "text-green-600" : "text-red-600"
+              }`}
+            >
+              {lastResult.correct ? "correct" : "incorrect"}
+            </div>
+            <div className="flex gap-4 text-xs text-muted-foreground">
+              <span>
+                extracted:{" "}
+                <span className="text-foreground">
+                  {lastResult.extractedAnswer || "(none)"}
                 </span>
-                <div className="min-w-0">
-                  <span className="font-medium">{log.action.action}</span>
-                  {log.action.target && (
-                    <span className="text-muted-foreground">
-                      {" "}→ {log.action.target}
-                    </span>
-                  )}
-                  {log.action.value && (
-                    <span className="text-muted-foreground/60">
-                      {" "}&quot;{log.action.value.substring(0, 50)}&quot;
-                    </span>
-                  )}
-                </div>
-                {log.action.action === "done" && (
-                  <span className="ml-auto shrink-0 text-green-600">●</span>
-                )}
-                {log.action.action === "fail" && (
-                  <span className="ml-auto shrink-0 text-red-600">●</span>
-                )}
-              </div>
-            ))}
-            <div ref={logEndRef} />
-          </div>
-
-          {/* step counter */}
-          <div className="text-[10px] text-muted-foreground">
-            step {currentStepLogs.length} / {useBenchmarkStore.getState().config.maxSteps}
-          </div>
-        </div>
-      </div>
+              </span>
+              <span>
+                expected:{" "}
+                <span className="text-foreground">
+                  {lastResult.expectedAnswer}
+                </span>
+              </span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
