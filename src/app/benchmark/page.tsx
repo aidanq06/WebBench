@@ -63,15 +63,15 @@ export default function BenchmarkPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
-      <div className="flex flex-1 flex-col items-center px-6 py-16">
-        <div className="flex w-full max-w-xl flex-col gap-12">
+      <div className="flex flex-1 flex-col items-center px-6 py-12">
+        <div className="flex w-full max-w-2xl flex-col gap-10">
 
           {/* ── idle ── */}
           {phase === "idle" && (
             <>
               <motion.div custom={0} variants={fadeUp} initial="hidden" animate="show">
-                <h1 className="text-3xl font-medium tracking-tighter">run benchmark</h1>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <h1 className="text-4xl font-medium tracking-tighter">run benchmark</h1>
+                <p className="mt-3 text-base text-muted-foreground">
                   select a model and question count, then run
                 </p>
               </motion.div>
@@ -81,29 +81,29 @@ export default function BenchmarkPage() {
               </motion.div>
 
               <motion.div custom={2} variants={fadeUp} initial="hidden" animate="show" className="flex flex-col gap-3">
-                <div className="text-xs text-muted-foreground">questions</div>
-                <div className="flex gap-2">
+                <div className="text-sm text-muted-foreground">questions</div>
+                <div className="flex gap-3">
                   {([10, 20, 40] as const).map((n) => {
                     const meta = {
-                      10: { tag: "quick", desc: "2–3 per subject · ~3 min", sub: "good for fast comparisons" },
-                      20: { tag: "standard", desc: "5 per subject · ~6 min", sub: "recommended starting point" },
-                      40: { tag: "thorough", desc: "10 per subject · ~12 min", sub: "full coverage across difficulties" },
+                      10: { tag: "quick", hint: "~3 min" },
+                      20: { tag: "standard", hint: "~6 min" },
+                      40: { tag: "thorough", hint: "~12 min" },
                     }[n];
                     return (
                       <button
                         key={n}
                         onClick={() => setQuestionCount(n)}
-                        className={`group relative flex-1 overflow-hidden border py-5 text-sm transition-colors hover:bg-accent/30 ${
+                        className={`group relative flex-1 overflow-hidden border py-4 text-sm transition-colors hover:bg-accent/30 ${
                           questionCount === n ? "border-foreground/30 bg-accent" : ""
                         }`}
                       >
                         <span className="flex flex-col items-center gap-1 transition-opacity duration-150 group-hover:opacity-0">
-                          <span className="text-base font-medium">{n}</span>
+                          <span className="text-xl font-medium">{n}</span>
                           <span className="text-xs text-muted-foreground">{meta.tag}</span>
                         </span>
-                        <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-                          <span className="text-xs font-medium">{meta.desc}</span>
-                          <span className="text-[11px] text-muted-foreground">{meta.sub}</span>
+                        <span className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                          <span className="font-medium">{n}</span>
+                          <span className="text-xs text-muted-foreground">{meta.hint}</span>
                         </span>
                       </button>
                     );
@@ -116,7 +116,7 @@ export default function BenchmarkPage() {
                   onClick={handleRun}
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
-                  className="w-full border bg-primary py-4 text-sm text-primary-foreground transition-colors hover:bg-primary/90"
+                  className="w-full border bg-primary py-5 text-base text-primary-foreground transition-colors hover:bg-primary/90"
                 >
                   run benchmark
                 </motion.button>
@@ -129,16 +129,16 @@ export default function BenchmarkPage() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex flex-col gap-4"
+              className="flex flex-col gap-5"
             >
-              <div className="text-sm">
+              <div className="text-base">
                 loading{" "}
                 <span className="text-muted-foreground">
                   {selectedModel?.displayName ?? selectedModelId}
                 </span>
                 ...
               </div>
-              <div className="relative h-0.5 w-full bg-secondary">
+              <div className="relative h-1 w-full bg-secondary">
                 <motion.div
                   className="absolute inset-y-0 left-0 bg-foreground"
                   initial={{ width: 0 }}
@@ -147,8 +147,8 @@ export default function BenchmarkPage() {
                 />
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">{loadingText}</span>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-sm text-muted-foreground">{loadingText}</span>
+                <span className="text-sm text-muted-foreground">
                   {Math.round(loadingProgress * 100)}%
                 </span>
               </div>

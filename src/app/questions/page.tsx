@@ -1,14 +1,12 @@
 import { Navbar } from "@/components/landing/Navbar";
-import { HeroSection } from "@/components/landing/HeroSection";
-import { HowItWorks } from "@/components/landing/HowItWorks";
+import { TaskPreviewGrid } from "@/components/landing/TaskPreviewGrid";
 
-export default function Home() {
+export default function QuestionsPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
       <main className="flex flex-1 flex-col">
-        <HeroSection />
-        <HowItWorks />
+        <TaskPreviewGrid />
       </main>
     </div>
   );

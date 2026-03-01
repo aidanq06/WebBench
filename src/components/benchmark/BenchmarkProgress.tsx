@@ -26,16 +26,16 @@ export function BenchmarkProgress() {
   }, [streamingText]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       {/* progress bar + counter */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>
             question {currentQuestionIndex + 1} / {totalQuestions}
           </span>
           <span>{correctCount} correct</span>
         </div>
-        <div className="relative h-0.5 w-full bg-secondary">
+        <div className="relative h-1 w-full bg-secondary">
           <motion.div
             className="absolute inset-y-0 left-0 bg-foreground"
             animate={{ width: `${progressPct}%` }}
@@ -53,20 +53,20 @@ export function BenchmarkProgress() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="flex flex-col gap-4 border p-8"
+            className="flex flex-col gap-5 border p-10"
           >
             <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-[10px]">
+              <Badge variant="secondary" className="text-xs">
                 {currentQuestion.subject}
               </Badge>
-              <Badge variant="outline" className="text-[10px]">
+              <Badge variant="outline" className="text-xs">
                 {currentQuestion.difficulty}
               </Badge>
-              <span className="ml-auto font-mono text-[10px] text-muted-foreground/50">
+              <span className="ml-auto font-mono text-xs text-muted-foreground/50">
                 {currentQuestion.id}
               </span>
             </div>
-            <div className="text-base leading-relaxed text-foreground/70">
+            <div className="text-lg leading-relaxed text-foreground/70">
               <QuestionText text={currentQuestion.text} />
             </div>
           </motion.div>
@@ -79,11 +79,11 @@ export function BenchmarkProgress() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="border-l-2 border-muted-foreground/20 pl-3"
+            className="border-l-2 border-muted-foreground/20 pl-4"
           >
-            <div className="mb-1 text-[10px] text-muted-foreground">model response</div>
-            <div className="max-h-48 overflow-y-auto">
-              <pre className="whitespace-pre-wrap text-xs text-muted-foreground/80">
+            <div className="mb-2 text-xs text-muted-foreground">model response</div>
+            <div className="max-h-64 overflow-y-auto">
+              <pre className="whitespace-pre-wrap text-sm text-muted-foreground/80">
                 {streamingText}
               </pre>
               <div ref={streamEndRef} />
@@ -101,20 +101,20 @@ export function BenchmarkProgress() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className={`flex flex-col gap-1 border p-4 ${
+            className={`flex flex-col gap-2 border p-5 ${
               lastResult.correct
                 ? "border-green-600/50 bg-green-600/5"
                 : "border-red-600/50 bg-red-600/5"
             }`}
           >
             <div
-              className={`text-xs font-medium ${
+              className={`text-sm font-medium ${
                 lastResult.correct ? "text-green-600" : "text-red-600"
               }`}
             >
               {lastResult.correct ? "correct" : "incorrect"}
             </div>
-            <div className="flex gap-4 text-xs text-muted-foreground">
+            <div className="flex gap-4 text-sm text-muted-foreground">
               <span>
                 extracted:{" "}
                 <span className="font-mono text-foreground">

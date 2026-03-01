@@ -41,7 +41,7 @@ export function TaskPreviewGrid() {
   }
 
   return (
-    <section id="tasks" className="border-t px-6 py-12">
+    <section className="border-t px-6 py-12">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
         {/* header */}
         <div className="flex items-center justify-between">

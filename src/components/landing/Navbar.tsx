@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TerminalIcon } from "lucide-react";
+import { CacheSettings } from "./CacheSettings";
 
 export function Navbar() {
   return (
@@ -14,12 +15,9 @@ export function Navbar() {
           <Link href="/benchmark" className="text-muted-foreground hover:text-foreground">
             run
           </Link>
-          <Link href="/chat" className="text-muted-foreground hover:text-foreground">
-            chat
+          <Link href="/questions" className="text-muted-foreground hover:text-foreground">
+            question bank
           </Link>
-          <a href="/#tasks" className="text-muted-foreground hover:text-foreground">
-            tasks
-          </a>
           <a
             href="https://aidanquach.dev/"
             target="_blank"
@@ -36,6 +34,7 @@ export function Navbar() {
           >
             github
           </a>
+          <CacheSettings />
         </nav>
       </div>
     </header>

@@ -109,7 +109,7 @@ export async function runQABenchmark(
     try {
       modelResponse = await generateStream(
         messages,
-        { temperature: 0.1, max_tokens: 512 },
+        { temperature: 0.1, max_tokens: 1024, stopOnAnswerLine: true },
         (fullText) => {
           useBenchmarkStore.getState().setStreamingText(fullText);
         }

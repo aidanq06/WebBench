@@ -52,7 +52,7 @@ export async function generateCompletion(
 
 export async function generateStream(
   messages: { role: string; content: string }[],
-  options: { temperature?: number; max_tokens?: number },
+  options: { temperature?: number; max_tokens?: number; stopOnAnswerLine?: boolean },
   onChunk: (fullText: string) => void
 ): Promise<string> {
   if (!engine) throw new Error("engine not loaded");
@@ -69,6 +69,9 @@ export async function generateStream(
     if (delta) {
       fullText += delta;
       onChunk(fullText);
+      // Stop as soon as a complete ANSWER: line is present — no need to generate further.
+      // A looping model never produces a clean "ANSWER: x\n" so it still hits max_tokens.
+      if (options.stopOnAnswerLine && /ANSWER:\s*\S[^\n]*\n/im.test(fullText)) break;
     }
   }
   return fullText;
