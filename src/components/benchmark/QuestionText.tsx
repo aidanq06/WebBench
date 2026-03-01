@@ -1,84 +1,60 @@
 "use client";
 
-import katex from "katex";
+import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import type { Components } from "react-markdown";
 
-function renderInline(latex: string): string {
-  try {
-    return katex.renderToString(latex, { throwOnError: false, displayMode: false });
-  } catch {
-    return latex;
-  }
-}
+const components: Components = {
+  // fenced code blocks — delegate children so <pre> doesn't double-wrap
+  pre({ children }) {
+    return <>{children}</>;
+  },
+  code({ className, children, ...props }) {
+    const match = /language-(\w+)/.exec(className ?? "");
 
-function renderDisplay(latex: string): string {
-  try {
-    return katex.renderToString(latex, { throwOnError: false, displayMode: true });
-  } catch {
-    return latex;
-  }
-}
-
-interface Segment {
-  type: "text" | "inline" | "display";
-  content: string;
-}
-
-function parseSegments(text: string): Segment[] {
-  const segments: Segment[] = [];
-  // Match $$...$$ first, then $...$
-  const re = /\$\$([^$]+)\$\$|\$([^$\n]+)\$/g;
-  let last = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = re.exec(text)) !== null) {
-    if (match.index > last) {
-      segments.push({ type: "text", content: text.slice(last, match.index) });
+    if (match) {
+      return (
+        <SyntaxHighlighter
+          style={vscDarkPlus}
+          language={match[1]}
+          PreTag="div"
+          customStyle={{
+            margin: "0.5rem 0",
+            borderRadius: 0,
+            fontSize: "0.8rem",
+            lineHeight: 1.5,
+          }}
+        >
+          {String(children).replace(/\n$/, "")}
+        </SyntaxHighlighter>
+      );
     }
-    if (match[1] !== undefined) {
-      segments.push({ type: "display", content: match[1] });
-    } else {
-      segments.push({ type: "inline", content: match[2] });
-    }
-    last = match.index + match[0].length;
-  }
 
-  if (last < text.length) {
-    segments.push({ type: "text", content: text.slice(last) });
-  }
-
-  return segments;
-}
+    // inline code or fenced block without language tag
+    return (
+      <code
+        className="rounded-sm bg-muted px-1 py-0.5 font-mono text-[0.85em]"
+        {...props}
+      >
+        {children}
+      </code>
+    );
+  },
+};
 
 export function QuestionText({ text }: { text: string }) {
-  const segments = parseSegments(text);
-
   return (
-    <span>
-      {segments.map((seg, i) => {
-        if (seg.type === "display") {
-          return (
-            <span
-              key={i}
-              className="my-2 block"
-              dangerouslySetInnerHTML={{ __html: renderDisplay(seg.content) }}
-            />
-          );
-        }
-        if (seg.type === "inline") {
-          return (
-            <span
-              key={i}
-              dangerouslySetInnerHTML={{ __html: renderInline(seg.content) }}
-            />
-          );
-        }
-        // plain text — preserve newlines
-        return (
-          <span key={i} className="whitespace-pre-wrap">
-            {seg.content}
-          </span>
-        );
-      })}
+    <span className="[&>p]:mb-2 [&>p:last-child]:mb-0">
+      <ReactMarkdown
+        remarkPlugins={[remarkMath]}
+        rehypePlugins={[rehypeKatex]}
+        components={components}
+      >
+        {text}
+      </ReactMarkdown>
     </span>
   );
 }

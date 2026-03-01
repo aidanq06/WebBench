@@ -16,7 +16,7 @@ export function Navbar() {
             run
           </Link>
           <Link href="/questions" className="text-muted-foreground hover:text-foreground">
-            question bank
+            question set
           </Link>
           <a
             href="https://aidanquach.dev/"

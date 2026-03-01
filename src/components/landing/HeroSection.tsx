@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Github } from "lucide-react";
+import { Github, BookOpen } from "lucide-react";
 import { motion, useScroll, useTransform } from "framer-motion";
 
 const WORDS = ["server.", "api key.", "setup.", "cloud.", "cost."] as const;
@@ -63,16 +63,25 @@ export function HeroSection() {
         className="relative flex flex-col items-start gap-8 text-left -mt-16"
         style={{ opacity, y }}
       >
-        {/* GitHub badge */}
-        <a
-          href="https://github.com/aidanq06/WebBench"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 border px-4 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <Github className="h-3.5 w-3.5" />
-          open source
-        </a>
+        {/* badges row */}
+        <div className="flex items-center gap-3">
+          <a
+            href="https://github.com/aidanq06/WebBench"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 border px-4 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Github className="h-3.5 w-3.5" />
+            open source
+          </a>
+          <Link
+            href="/questions"
+            className="inline-flex items-center gap-2 border px-4 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            question set
+          </Link>
+        </div>
 
         <h1 className="text-4xl font-medium tracking-tighter sm:text-7xl">
           <span className="block whitespace-nowrap">benchmark local llms.</span>

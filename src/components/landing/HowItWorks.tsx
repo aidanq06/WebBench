@@ -116,7 +116,7 @@ const MODEL_INFO: Record<string, string> = {
 
 function ModelPanel() {
   const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "0px 0px -100px 0px" });
+  const inView = useInView(ref, { margin: "0px 0px -100px 0px" });
   const [activeCard, setActiveCard] = useState<string | null>(null);
 
   return (
@@ -165,9 +165,8 @@ function ModelPanel() {
               <div className="relative h-px w-full bg-secondary">
                 <motion.div
                   className="absolute inset-y-0 left-0 bg-muted-foreground/40"
-                  initial={{ width: 0 }}
-                  animate={inView ? { width: `${sizePct}%` } : {}}
-                  transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
+                  animate={inView ? { width: `${sizePct}%` } : { width: 0 }}
+                  transition={{ duration: 0.6, ease: "easeOut", delay: inView ? 0.2 : 0 }}
                 />
               </div>
               {/* expandable description */}
@@ -313,7 +312,7 @@ const SUBJECT_DATA = [
 
 function ReportPanel() {
   const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "0px 0px -80px 0px" });
+  const inView = useInView(ref, { margin: "0px 0px -80px 0px" });
 
   return (
     <div ref={ref} className="flex w-full flex-col gap-8">
@@ -331,9 +330,8 @@ function ReportPanel() {
           {DIFFICULTY_DATA.map((d, i) => (
             <motion.div
               key={d.label}
-              initial={{ opacity: 0, y: 10 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.4, delay: i * 0.1, ease: "easeOut" }}
+              animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+              transition={{ duration: 0.4, delay: inView ? i * 0.1 : 0, ease: "easeOut" }}
               className="flex flex-1 flex-col items-center gap-1.5 border p-5"
             >
               <span className="text-3xl font-medium tracking-tight">{d.pct}%</span>
@@ -354,9 +352,8 @@ function ReportPanel() {
               <div className="relative h-1 flex-1 bg-secondary">
                 <motion.div
                   className="absolute inset-y-0 left-0 bg-foreground"
-                  initial={{ width: 0 }}
-                  animate={inView ? { width: `${s.pct}%` } : {}}
-                  transition={{ duration: 0.8, delay: 0.3 + i * 0.1, ease: "easeOut" }}
+                  animate={inView ? { width: `${s.pct}%` } : { width: 0 }}
+                  transition={{ duration: 0.8, delay: inView ? 0.3 + i * 0.1 : 0, ease: "easeOut" }}
                 />
               </div>
               <span className="w-10 shrink-0 text-right text-sm text-muted-foreground/60">
@@ -385,9 +382,9 @@ export function HowItWorks() {
   const panel3Ref = useRef<HTMLDivElement>(null);
   const [activeStep, setActiveStep] = useState(0);
 
-  const p1Visible = useInView(panel1Ref, { once: true, margin: "0px 0px -100px 0px" });
-  const p2Visible = useInView(panel2Ref, { once: true, margin: "0px 0px -100px 0px" });
-  const p3Visible = useInView(panel3Ref, { once: true, margin: "0px 0px -100px 0px" });
+  const p1Visible = useInView(panel1Ref, { margin: "0px 0px -100px 0px" });
+  const p2Visible = useInView(panel2Ref, { margin: "0px 0px -100px 0px" });
+  const p3Visible = useInView(panel3Ref, { margin: "0px 0px -100px 0px" });
 
   const updateActiveStep = useCallback(() => {
     const panels = [panel1Ref.current, panel2Ref.current, panel3Ref.current];
@@ -418,7 +415,7 @@ export function HowItWorks() {
 
   const headingRef = useRef<HTMLDivElement>(null);
   const headingVisible = useInView(headingRef, { once: true, margin: "0px 0px -50px 0px" });
-  const navVisible = useInView(panel1Ref, { once: true, margin: "0px 0px -200px 0px" });
+  const navVisible = useInView(panel1Ref, { margin: "0px 0px -200px 0px" });
 
   return (
     <section ref={sectionRef} className="px-6">
@@ -463,8 +460,7 @@ export function HowItWorks() {
             >
               <motion.div
                 className="w-full"
-                initial={{ opacity: 0, y: 30 }}
-                animate={p1Visible ? { opacity: 1, y: 0 } : {}}
+                animate={p1Visible ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
                 transition={{ duration: 0.6, ease: "easeOut" }}
               >
                 <ModelPanel />
@@ -477,8 +473,7 @@ export function HowItWorks() {
             >
               <motion.div
                 className="w-full"
-                initial={{ opacity: 0, y: 30 }}
-                animate={p2Visible ? { opacity: 1, y: 0 } : {}}
+                animate={p2Visible ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
                 transition={{ duration: 0.6, ease: "easeOut" }}
               >
                 <RunPanel />
@@ -491,8 +486,7 @@ export function HowItWorks() {
             >
               <motion.div
                 className="w-full"
-                initial={{ opacity: 0, y: 30 }}
-                animate={p3Visible ? { opacity: 1, y: 0 } : {}}
+                animate={p3Visible ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
                 transition={{ duration: 0.6, ease: "easeOut" }}
               >
                 <ReportPanel />

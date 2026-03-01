@@ -64,14 +64,18 @@ export async function generateStream(
   });
 
   let fullText = "";
+  let answered = false;
   for await (const chunk of stream) {
     const delta = chunk.choices[0]?.delta?.content ?? "";
-    if (delta) {
+    if (delta && !answered) {
       fullText += delta;
       onChunk(fullText);
-      // Stop as soon as a complete ANSWER: line is present — no need to generate further.
-      // A looping model never produces a clean "ANSWER: x\n" so it still hits max_tokens.
-      if (options.stopOnAnswerLine && /ANSWER:\s*\S[^\n]*\n/im.test(fullText)) break;
+      // Once a complete ANSWER: line is present, stop updating the UI but keep
+      // draining the stream — breaking early leaves the worker mid-generation
+      // which causes the next question's generate call to hang with no output.
+      if (options.stopOnAnswerLine && /ANSWER:\s*\S[^\n]*\n/im.test(fullText)) {
+        answered = true;
+      }
     }
   }
   return fullText;
