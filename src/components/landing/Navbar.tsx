@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { TerminalIcon } from "lucide-react";
 import { CacheSettings } from "./CacheSettings";
+import { AuthButton } from "./AuthButton";
 
 export function Navbar() {
   return (
@@ -14,6 +15,9 @@ export function Navbar() {
         <nav className="flex items-center gap-6 text-sm max-sm:hidden">
           <Link href="/benchmark" className="text-muted-foreground hover:text-foreground">
             run
+          </Link>
+          <Link href="/leaderboard" className="text-muted-foreground hover:text-foreground">
+            leaderboard
           </Link>
           <Link href="/questions" className="text-muted-foreground hover:text-foreground">
             question set
@@ -35,6 +39,7 @@ export function Navbar() {
             github
           </a>
           <CacheSettings />
+          <AuthButton />
         </nav>
       </div>
     </header>
