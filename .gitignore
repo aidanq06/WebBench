@@ -37,6 +37,9 @@ yarn-error.log*
 # claude code
 .claude/
 
+# local secrets (never commit)
+/secrets/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
