@@ -11,7 +11,7 @@ import { ScoreGauge } from "@/components/report/ScoreGauge";
 import { QuestionText } from "@/components/benchmark/QuestionText";
 import { Badge } from "@/components/ui/badge";
 import { Navbar } from "@/components/landing/Navbar";
-import { AVAILABLE_MODELS } from "@/lib/webllm/models";
+import { AVAILABLE_MODELS, modelLogo } from "@/lib/webllm/models";
 
 // ── Animated stat bar ─────────────────────────────────────────────────────────
 function StatBar({
@@ -271,7 +271,15 @@ export function ReportClient({
               </button>
               {savedToDb && <ShareButton runId={runId} />}
             </div>
-            <h1 className="text-2xl font-medium tracking-tighter">benchmark report</h1>
+            <div className="flex items-center gap-3">
+              {(() => {
+                const logo = modelLogo(report.modelId);
+                return logo ? (
+                  <img src={logo} alt="" className="h-8 w-8 object-contain" />
+                ) : null;
+              })()}
+              <h1 className="text-2xl font-medium tracking-tighter">benchmark report</h1>
+            </div>
             <p className="text-xs text-muted-foreground">
               {report.modelDisplayName ?? model?.displayName ?? report.modelId}
               {model && (
