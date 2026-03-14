@@ -15,14 +15,30 @@ export interface DifficultyScore {
   accuracy: number;
 }
 
+export type DeviceClass = "apple-silicon" | "nvidia" | "amd" | "intel" | "mobile" | "unknown";
+
+export interface HardwareInfo {
+  gpuVendor: string;
+  gpuDevice: string;
+  deviceClass: DeviceClass;
+  cpuThreads: number;
+  browser: string;
+  os: string;
+  webgpuBackend: string;
+}
+
 export interface BenchmarkReport {
   runId: string;
   modelId: string;
+  modelDisplayName: string;
   suiteId: string;
   overallAccuracy: number;
   correctCount: number;
   totalQuestions: number;
   avgTimeMs: number;
+  tokensPerSecond: number;
+  efficiencyScore: number;
+  hardware: HardwareInfo;
   subjectScores: SubjectScore[];
   difficultyScores: DifficultyScore[];
   questionResults: QuestionResult[];

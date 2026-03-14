@@ -1,15 +1,23 @@
 import { QuestionResult } from "@/types/task";
-import { BenchmarkReport, SubjectScore, DifficultyScore } from "@/types/report";
+import { BenchmarkReport, SubjectScore, DifficultyScore, HardwareInfo } from "@/types/report";
 import { Subject, Difficulty } from "@/types/agent";
+import { AVAILABLE_MODELS } from "@/lib/webllm/models";
 
 const SUBJECTS: Subject[] = ["math", "logic", "coding", "reasoning"];
 const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
+
+function parseParamBillions(parameterCount: string): number {
+  const match = parameterCount.match(/^([\d.]+)B$/i);
+  return match ? parseFloat(match[1]) : 1;
+}
 
 export function generateReport(
   results: QuestionResult[],
   modelId: string,
   suiteId: string,
-  runId: string
+  runId: string,
+  tokensPerSecond: number,
+  hardware: HardwareInfo
 ): BenchmarkReport {
   const correctCount = results.filter((r) => r.correct).length;
   const overallAccuracy = results.length > 0 ? correctCount / results.length : 0;
@@ -17,6 +25,14 @@ export function generateReport(
     results.length > 0
       ? Math.round(results.reduce((sum, r) => sum + r.timeTakenMs, 0) / results.length)
       : 0;
+
+  const model = AVAILABLE_MODELS.find((m) => m.id === modelId);
+  const modelDisplayName = model?.displayName ?? modelId;
+  const paramBillions = model ? parseParamBillions(model.parameterCount) : 1;
+  // efficiencyScore: accuracy% / sqrt(paramBillions) — rewards small models that punch above weight
+  const efficiencyScore = parseFloat(
+    ((overallAccuracy * 100) / Math.sqrt(paramBillions)).toFixed(1)
+  );
 
   const subjectScores: SubjectScore[] = SUBJECTS.map((subject) => {
     const subset = results.filter((r) => r.subject === subject);
@@ -43,11 +59,15 @@ export function generateReport(
   return {
     runId,
     modelId,
+    modelDisplayName,
     suiteId,
     overallAccuracy,
     correctCount,
     totalQuestions: results.length,
     avgTimeMs,
+    tokensPerSecond,
+    efficiencyScore,
+    hardware,
     subjectScores,
     difficultyScores,
     questionResults: results,

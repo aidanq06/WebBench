@@ -1,297 +1,93 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import type { Metadata } from "next";
+import { createClient } from "@/lib/supabase/server";
 import { BenchmarkReport } from "@/types/report";
-import { QuestionResult } from "@/types/task";
-import { QUESTIONS } from "@/lib/benchmark/questions";
-import { ScoreGauge } from "@/components/report/ScoreGauge";
-import { QuestionText } from "@/components/benchmark/QuestionText";
-import { Badge } from "@/components/ui/badge";
-import { Navbar } from "@/components/landing/Navbar";
-import { AVAILABLE_MODELS } from "@/lib/webllm/models";
+import { ReportClient } from "./report-client";
 
-// ── Animated stat bar (subject breakdown) ────────────────────────────────────
-function StatBar({
-  label,
-  correct,
-  total,
-  delay = 0,
-}: {
-  label: string;
-  correct: number;
-  total: number;
-  delay?: number;
-}) {
-  const pct = total > 0 ? (correct / total) * 100 : 0;
-  return (
-    <div className="flex items-center gap-3">
-      <span className="w-20 shrink-0 text-xs text-muted-foreground">{label}</span>
-      <div className="relative h-0.5 flex-1 bg-secondary">
-        <motion.div
-          className="absolute inset-y-0 left-0 bg-foreground"
-          initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.7, delay, ease: "easeOut" }}
-        />
-      </div>
-      <span className="w-12 shrink-0 text-right text-xs text-muted-foreground">
-        {correct}/{total}
-      </span>
-    </div>
-  );
+interface Props {
+  params: Promise<{ runId: string }>;
 }
 
-// ── Difficulty stat block ─────────────────────────────────────────────────────
-function DifficultyBlock({
-  label,
-  correct,
-  total,
-  delay = 0,
-}: {
-  label: string;
-  correct: number;
-  total: number;
-  delay?: number;
-}) {
-  const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay, ease: "easeOut" }}
-      className="flex flex-1 flex-col items-center gap-1 border p-5"
-    >
-      <span className="text-3xl font-medium tracking-tight">{pct}%</span>
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-[10px] text-muted-foreground/50">{correct}/{total}</span>
-    </motion.div>
-  );
-}
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { runId } = await params;
+  const supabase = await createClient();
 
-// ── Expandable question result row ──────────────────────────────────────────
-function QuestionRow({ result }: { result: QuestionResult }) {
-  const [open, setOpen] = useState(false);
-  const question = QUESTIONS.find((q) => q.id === result.questionId);
+  const { data } = await supabase
+    .from("reports")
+    .select("model_display_name, accuracy, correct_count, total_questions")
+    .eq("id", runId)
+    .single();
 
-  return (
-    <div className={`border-b last:border-b-0 ${open ? "border-l-2 border-l-muted-foreground/20" : ""}`}>
-      <button
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/20"
-        onClick={() => setOpen((v) => !v)}
-      >
-        <motion.div
-          className={`h-1.5 w-1.5 shrink-0 ${result.correct ? "bg-green-600" : "bg-red-600"}`}
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", stiffness: 300 }}
-        />
-        <span className="w-8 shrink-0 font-mono text-xs text-muted-foreground/50">
-          {result.questionId}
-        </span>
-        <Badge variant="secondary" className="shrink-0 text-[10px]">
-          {result.subject}
-        </Badge>
-        <Badge variant="outline" className="shrink-0 text-[10px]">
-          {result.difficulty}
-        </Badge>
-        <span className={`flex-1 text-xs ${result.correct ? "text-foreground/70" : "text-muted-foreground"}`}>
-          {result.correct ? "correct" : "incorrect"}
-        </span>
-        <span className="shrink-0 text-xs text-muted-foreground/40">
-          {(result.timeTakenMs / 1000).toFixed(1)}s
-        </span>
-        <motion.span
-          animate={{ rotate: open ? 90 : 0 }}
-          transition={{ duration: 0.2 }}
-          className="shrink-0 text-[10px] text-muted-foreground/40"
-        >
-          ›
-        </motion.span>
-      </button>
-
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            key="detail"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
-            className="overflow-hidden"
-          >
-            <div className="flex flex-col gap-4 px-6 pb-5 pt-2">
-              {question && (
-                <div className="text-sm leading-relaxed text-foreground/70">
-                  <QuestionText text={question.text} />
-                </div>
-              )}
-              <div className="flex gap-6 text-xs text-muted-foreground">
-                <span>
-                  extracted:{" "}
-                  <span className={`font-mono ${result.correct ? "text-green-600" : "text-red-600"}`}>
-                    {result.extractedAnswer || "(none)"}
-                  </span>
-                </span>
-                <span>
-                  expected:{" "}
-                  <span className="font-mono text-foreground/60">{result.expectedAnswer}</span>
-                </span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] text-muted-foreground">model response</span>
-                <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap bg-secondary px-3 py-3 text-xs text-muted-foreground/80">
-                  {result.modelResponse || "(no response)"}
-                </pre>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-// ── Stagger container ─────────────────────────────────────────────────────────
-const container = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.08 } },
-};
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 14 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" as const } },
-};
-
-// ── Page ──────────────────────────────────────────────────────────────────────
-export default function ReportPage() {
-  const params = useParams();
-  const router = useRouter();
-  const [report, setReport] = useState<BenchmarkReport | null>(null);
-
-  useEffect(() => {
-    const runId = params.runId as string;
-    const stored = sessionStorage.getItem(`report-${runId}`);
-    if (stored) {
-      setReport(JSON.parse(stored));
-    }
-  }, [params.runId]);
-
-  if (!report) {
-    return (
-      <div className="flex min-h-screen flex-col">
-        <Navbar />
-        <div className="flex flex-1 flex-col items-center justify-center gap-4">
-          <div className="text-sm text-muted-foreground">report not found</div>
-          <button
-            className="border px-4 py-2 text-sm hover:bg-accent/50"
-            onClick={() => router.push("/benchmark")}
-          >
-            run a benchmark
-          </button>
-        </div>
-      </div>
-    );
+  if (!data) {
+    return { title: "benchmark report · webbench" };
   }
 
-  const model = AVAILABLE_MODELS.find((m) => m.id === report.modelId);
-  const accuracy = Math.round(report.overallAccuracy * 100);
+  const accuracy = Math.round(data.accuracy * 100);
+  const title = `${data.model_display_name} · ${accuracy}% · webbench`;
+  const description = `${accuracy}% accuracy on ${data.total_questions} questions (${data.correct_count} correct) — benchmarked locally in browser`;
+  const ogImageUrl = `/api/og/${runId}`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: [{ url: ogImageUrl, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImageUrl],
+    },
+  };
+}
+
+export default async function ReportPage({ params }: Props) {
+  const { runId } = await params;
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("reports")
+    .select("*")
+    .eq("id", runId)
+    .single();
+
+  let dbReport: BenchmarkReport | null = null;
+
+  if (data) {
+    dbReport = {
+      runId: data.id,
+      modelId: data.model_id,
+      modelDisplayName: data.model_display_name ?? data.model_id,
+      suiteId: data.suite_id,
+      overallAccuracy: data.accuracy,
+      correctCount: data.correct_count,
+      totalQuestions: data.total_questions,
+      avgTimeMs: data.avg_time_ms,
+      tokensPerSecond: data.tokens_per_second ?? 0,
+      efficiencyScore: data.efficiency_score ?? 0,
+      hardware: {
+        gpuVendor: data.gpu_vendor ?? "unknown",
+        gpuDevice: data.gpu_device ?? "unknown",
+        deviceClass: data.device_class ?? "unknown",
+        cpuThreads: data.cpu_threads ?? 0,
+        browser: data.browser ?? "unknown",
+        os: data.os ?? "unknown",
+        webgpuBackend: data.webgpu_backend ?? "unknown",
+      },
+      subjectScores: data.subject_scores,
+      difficultyScores: data.difficulty_scores,
+      questionResults: data.question_results,
+      completedAt: data.completed_at,
+    };
+  }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Navbar />
-      <div className="flex flex-1 flex-col items-center px-6 py-12">
-        <motion.div
-          className="flex w-full max-w-2xl flex-col gap-8"
-          variants={container}
-          initial="hidden"
-          animate="show"
-        >
-          {/* ── header ── */}
-          <motion.div variants={fadeUp} className="flex flex-col gap-1">
-            <button
-              className="mb-1 self-start text-xs text-muted-foreground transition-colors hover:text-foreground"
-              onClick={() => router.push("/benchmark")}
-            >
-              ← back
-            </button>
-            <h1 className="text-2xl font-medium tracking-tighter">benchmark report</h1>
-            <p className="text-xs text-muted-foreground">
-              {model?.displayName ?? report.modelId}
-              {model && (
-                <span className="text-muted-foreground/50"> · {model.parameterCount} params</span>
-              )}
-              {" · "}
-              {report.totalQuestions} questions
-              {" · "}
-              {new Date(report.completedAt).toLocaleString()}
-            </p>
-          </motion.div>
-
-          {/* ── score + stats row ── */}
-          <motion.div variants={fadeUp} className="grid grid-cols-3 gap-px border">
-            <div className="flex flex-col items-center gap-1 bg-background p-6">
-              <ScoreGauge score={accuracy} />
-              <span className="text-xs text-muted-foreground">accuracy</span>
-            </div>
-            <div className="flex flex-col items-center justify-center gap-1 bg-background p-6">
-              <span className="text-3xl font-medium tracking-tight">
-                {report.correctCount}/{report.totalQuestions}
-              </span>
-              <span className="text-xs text-muted-foreground">correct</span>
-            </div>
-            <div className="flex flex-col items-center justify-center gap-1 bg-background p-6">
-              <span className="text-3xl font-medium tracking-tight">
-                {(report.avgTimeMs / 1000).toFixed(1)}s
-              </span>
-              <span className="text-xs text-muted-foreground">avg per question</span>
-            </div>
-          </motion.div>
-
-          {/* ── difficulty curve ── */}
-          <motion.div variants={fadeUp} className="flex flex-col gap-3">
-            <div className="text-xs text-muted-foreground">difficulty curve</div>
-            <div className="flex gap-2">
-              {report.difficultyScores.map((s, i) => (
-                <DifficultyBlock
-                  key={s.difficulty}
-                  label={s.difficulty}
-                  correct={s.correct}
-                  total={s.total}
-                  delay={i * 0.08}
-                />
-              ))}
-            </div>
-          </motion.div>
-
-          {/* ── subject breakdown ── */}
-          <motion.div variants={fadeUp} className="flex flex-col gap-3">
-            <div className="text-xs text-muted-foreground">by subject</div>
-            <div className="flex flex-col gap-2.5">
-              {report.subjectScores.map((s, i) => (
-                <StatBar
-                  key={s.subject}
-                  label={s.subject}
-                  correct={s.correct}
-                  total={s.total}
-                  delay={i * 0.08}
-                />
-              ))}
-            </div>
-          </motion.div>
-
-          {/* ── question results ── */}
-          <motion.div variants={fadeUp} className="flex flex-col gap-2">
-            <div className="text-xs text-muted-foreground">questions</div>
-            <div className="border">
-              {report.questionResults.map((result) => (
-                <QuestionRow key={result.questionId} result={result} />
-              ))}
-            </div>
-          </motion.div>
-        </motion.div>
-      </div>
-    </div>
+    <ReportClient
+      runId={runId}
+      dbReport={dbReport}
+      savedToDb={!!dbReport}
+    />
   );
 }

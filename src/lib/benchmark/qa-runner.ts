@@ -4,6 +4,8 @@ import { generateStream } from "@/lib/webllm/engine-client";
 import { useBenchmarkStore } from "@/store/benchmark-store";
 import { QuestionResult } from "@/types/task";
 import { Question } from "@/types/agent";
+import { createClient } from "@/lib/supabase/client";
+import { detectHardware } from "@/lib/hardware/detect";
 
 const SYSTEM_PROMPT = `You are a knowledge benchmark assistant. For each question:
 1. Show your reasoning step by step
@@ -92,7 +94,13 @@ export async function runQABenchmark(
   const questions = getRandomQuestions(questionCount);
   const results: QuestionResult[] = [];
 
+  // Detect hardware once before the run starts
+  const hardware = await detectHardware();
+
   store.start(questions.length);
+
+  let totalCharsGenerated = 0;
+  let totalInferenceMs = 0;
 
   for (let i = 0; i < questions.length; i++) {
     const question = questions[i];
@@ -119,6 +127,9 @@ export async function runQABenchmark(
     }
 
     const timeTakenMs = Date.now() - startTime;
+    totalCharsGenerated += modelResponse.length;
+    totalInferenceMs += timeTakenMs;
+
     const extractedAnswer = extractAnswer(modelResponse);
     const correct = checkAnswer(extractedAnswer, question.expectedAnswer, question.matchType);
 
@@ -140,7 +151,29 @@ export async function runQABenchmark(
     await new Promise((r) => setTimeout(r, 1200));
   }
 
-  const report = generateReport(results, modelId, String(questionCount), runId);
+  // ~4 chars per token is a reasonable approximation for English text
+  const tokensPerSecond =
+    totalInferenceMs > 0
+      ? parseFloat(((totalCharsGenerated / 4) / (totalInferenceMs / 1000)).toFixed(1))
+      : 0;
+
+  const report = generateReport(results, modelId, String(questionCount), runId, tokensPerSecond, hardware);
   sessionStorage.setItem(`report-${runId}`, JSON.stringify(report));
+
+  // Save to DB if signed in (fire-and-forget — local report already saved)
+  try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(report),
+      });
+    }
+  } catch {
+    // DB save failed — local sessionStorage copy still available
+  }
+
   store.complete(report);
 }
