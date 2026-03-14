@@ -55,6 +55,8 @@ export default async function ReportPage({ params }: Props) {
 
   let dbReport: BenchmarkReport | null = null;
 
+  let speedPercentile: number | null = null;
+
   if (data) {
     dbReport = {
       runId: data.id,
@@ -81,6 +83,16 @@ export default async function ReportPage({ params }: Props) {
       questionResults: data.question_results,
       completedAt: data.completed_at,
     };
+
+    if (data.tokens_per_second) {
+      const [fasterRes, totalRes] = await Promise.all([
+        supabase.from("reports").select("*", { count: "exact", head: true }).lt("tokens_per_second", data.tokens_per_second),
+        supabase.from("reports").select("*", { count: "exact", head: true }).not("tokens_per_second", "is", null),
+      ]);
+      const faster = fasterRes.count ?? 0;
+      const total = totalRes.count ?? 0;
+      if (total > 0) speedPercentile = Math.round((faster / total) * 100);
+    }
   }
 
   return (
@@ -88,6 +100,7 @@ export default async function ReportPage({ params }: Props) {
       runId={runId}
       dbReport={dbReport}
       savedToDb={!!dbReport}
+      speedPercentile={speedPercentile}
     />
   );
 }

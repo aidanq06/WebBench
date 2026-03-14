@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useBenchmarkStore } from "@/store/benchmark-store";
@@ -10,6 +10,8 @@ import { ModelSelector } from "@/components/benchmark/ModelSelector";
 import { BenchmarkProgress } from "@/components/benchmark/BenchmarkProgress";
 import { Navbar } from "@/components/landing/Navbar";
 import { AVAILABLE_MODELS } from "@/lib/webllm/models";
+import { detectHardware } from "@/lib/hardware/detect";
+import { HardwareInfo } from "@/types/report";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 8 },
@@ -33,13 +35,17 @@ export default function BenchmarkPage() {
   } = useBenchmarkStore();
 
   const selectedModel = AVAILABLE_MODELS.find((m) => m.id === selectedModelId);
+  const [hardware, setHardware] = useState<HardwareInfo | null>(null);
 
-  // Reset if we navigated back after a completed run
   useEffect(() => {
     if (phase === "complete") {
       useBenchmarkStore.getState().reset();
     }
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    detectHardware().then(setHardware);
+  }, []);
 
   const handleRun = useCallback(async () => {
     const store = useBenchmarkStore.getState();
@@ -74,6 +80,14 @@ export default function BenchmarkPage() {
                 <p className="mt-3 text-base text-muted-foreground">
                   select a model and question count, then run
                 </p>
+                {hardware && (
+                  <p className="mt-2 text-xs text-muted-foreground/50">
+                    detected:{" "}
+                    {hardware.gpuDevice !== "unknown" ? hardware.gpuDevice : hardware.deviceClass !== "unknown" ? hardware.deviceClass : "unknown device"}
+                    {hardware.webgpuBackend !== "unknown" && ` · ${hardware.webgpuBackend}`}
+                    {hardware.browser !== "unknown" && ` · ${hardware.browser}`}
+                  </p>
+                )}
               </motion.div>
 
               <motion.div custom={1} variants={fadeUp} initial="hidden" animate="show">
