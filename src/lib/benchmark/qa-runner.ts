@@ -28,7 +28,7 @@ export async function runQABenchmark(
   runId: string
 ): Promise<void> {
   const store = useBenchmarkStore.getState();
-  const questions = getRandomQuestions(questionCount);
+  const questions = getRandomQuestions(questionCount, store.subjectFilter, store.difficultyFilter);
   const results: QuestionResult[] = [];
 
   // Detect hardware once before the run starts
