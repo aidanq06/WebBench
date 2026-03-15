@@ -125,18 +125,23 @@ function QuestionRow({ result }: { result: QuestionResult }) {
             <div className="flex flex-col gap-4 px-6 pb-5 pt-2">
               {question && (
                 <div className="text-sm leading-relaxed text-foreground/70">
-                  <QuestionText text={question.text} />
+                  <QuestionText
+                    text={question.text}
+                    choices={question.choices}
+                    highlightCorrect={result.expectedAnswer as "A" | "B" | "C" | "D"}
+                    highlightSelected={result.extractedAnswer as "A" | "B" | "C" | "D" | undefined}
+                  />
                 </div>
               )}
               <div className="flex gap-6 text-xs text-muted-foreground">
                 <span>
-                  extracted:{" "}
+                  answered:{" "}
                   <span className={`font-mono ${result.correct ? "text-green-600" : "text-red-600"}`}>
                     {result.extractedAnswer || "(none)"}
                   </span>
                 </span>
                 <span>
-                  expected:{" "}
+                  correct:{" "}
                   <span className="font-mono text-foreground/60">{result.expectedAnswer}</span>
                 </span>
               </div>

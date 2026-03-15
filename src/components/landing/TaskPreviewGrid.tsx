@@ -7,14 +7,14 @@ import { QUESTIONS } from "@/lib/benchmark/questions";
 import { QuestionText } from "@/components/benchmark/QuestionText";
 import type { Subject, Difficulty } from "@/types/agent";
 
-const SUBJECTS: (Subject | "all")[] = ["all", "math", "logic", "coding", "reasoning"];
+const SUBJECTS: (Subject | "all")[] = ["all", "cs", "engineering", "math", "science"];
 const DIFFICULTIES: (Difficulty | "all")[] = ["all", "easy", "medium", "hard"];
 
 const SUBJECT_COLORS: Record<Subject, string> = {
-  math: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  logic: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
-  coding: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  reasoning: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  cs: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+  engineering: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+  math: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  science: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
 };
 
 const DIFFICULTY_COLORS: Record<Difficulty, string> = {
@@ -54,7 +54,7 @@ export function TaskPreviewGrid() {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-medium tracking-tight">question set</h2>
           <span className="text-xs text-muted-foreground">
-            {QUESTIONS.length} questions · 4 subjects
+            {QUESTIONS.length} questions · 4 subjects · mmlu
           </span>
         </div>
 
@@ -137,13 +137,7 @@ export function TaskPreviewGrid() {
                       >
                         <div className="ml-4 flex flex-col gap-3 border-l-2 border-muted-foreground/20 px-4 py-4">
                           <div className="text-sm leading-relaxed text-foreground/70">
-                            <QuestionText text={q.text} />
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            expected:{" "}
-                            <span className="font-mono text-foreground/60">
-                              {q.expectedAnswer}
-                            </span>
+                            <QuestionText text={q.text} choices={q.choices} highlightCorrect={q.expectedAnswer} />
                           </div>
                         </div>
                       </motion.div>

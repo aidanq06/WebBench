@@ -7,74 +7,52 @@ import { AVAILABLE_MODELS } from "@/lib/webllm/models";
 // ── Demo questions for panel 2 ───────────────────────────────────────────────
 const DEMO_QUESTIONS = [
   {
-    subject: "math",
+    subject: "cs",
     difficulty: "medium",
-    id: "math-012",
-    text: "What is the sum of the first 50 positive integers? Is it divisible by 3?",
-    response: `Let me work through this step by step.\n\nFirst, I need to find the sum of the first 50 positive integers.\nUsing the formula n(n+1)/2 = 50×51/2 = 1275.\n\nNow checking divisibility: 1275 / 3 = 425. Yes, divisible.\n\nANSWER: 1275`,
-  },
-  {
-    subject: "logic",
-    difficulty: "hard",
-    id: "logic-008",
-    text: "If all Bloops are Razzies and all Razzies are Lazzies, are all Bloops definitely Lazzies?",
-    response: `This is a classic syllogism.\n\nPremise 1: All Bloops are Razzies.\nPremise 2: All Razzies are Lazzies.\n\nBy transitivity: if every Bloop is a Razzy, and every Razzy is a Lazzy, then every Bloop must be a Lazzy.\n\nANSWER: Yes`,
-  },
-  {
-    subject: "coding",
-    difficulty: "medium",
-    id: "code-015",
-    text: "What is the time complexity of binary search on a sorted array of n elements?",
-    response: `Binary search works by repeatedly halving the search space.\n\nAt each step, we compare the target to the middle element and eliminate half the remaining elements.\n\nAfter k steps: n / 2^k = 1, so k = log₂(n).\n\nANSWER: O(log n)`,
-  },
-  {
-    subject: "reasoning",
-    difficulty: "hard",
-    id: "reas-003",
-    text: "A bat and a ball cost $1.10 together. The bat costs $1.00 more than the ball. How much does the ball cost?",
-    response: `The intuitive answer is $0.10, but let me check.\n\nIf ball = $0.10, then bat = $1.10. Total = $1.20. That's wrong.\n\nLet ball = x. Then bat = x + $1.00.\nx + (x + $1.00) = $1.10\n2x = $0.10\nx = $0.05\n\nANSWER: $0.05`,
+    id: "computer-science-14",
+    text: "Which of the following sorting algorithms has the best average-case time complexity?",
+    choices: ["Bubble sort", "Insertion sort", "Merge sort", "Selection sort"],
+    response: `Bubble, insertion, and selection sort all have O(n²) average-case complexity.\n\nMerge sort uses a divide-and-conquer approach that guarantees O(n log n) in all cases — best, average, and worst.\n\nANSWER: C`,
   },
   {
     subject: "math",
     difficulty: "hard",
-    id: "math-027",
-    text: "What is the derivative of f(x) = x³ · ln(x)?",
-    response: `Using the product rule: d/dx[u·v] = u'v + uv'\n\nLet u = x³, so u' = 3x²\nLet v = ln(x), so v' = 1/x\n\nf'(x) = 3x² · ln(x) + x³ · (1/x)\nf'(x) = 3x² ln(x) + x²\nf'(x) = x²(3 ln(x) + 1)\n\nANSWER: x²(3ln(x) + 1)`,
+    id: "abstract-algebra-07",
+    text: "The order of the group Z_6 × Z_2 is:",
+    choices: ["6", "8", "12", "3"],
+    response: `The order of a direct product of groups is the product of their orders.\n\n|Z_6| = 6, |Z_2| = 2\n|Z_6 × Z_2| = 6 × 2 = 12\n\nANSWER: C`,
   },
   {
-    subject: "logic",
-    difficulty: "easy",
-    id: "logic-001",
-    text: "If it takes 5 machines 5 minutes to make 5 widgets, how long would it take 100 machines to make 100 widgets?",
-    response: `Each machine makes 1 widget in 5 minutes.\n\nWith 100 machines working in parallel, each one makes 1 widget.\n100 machines × 1 widget each = 100 widgets.\n\nTime = 5 minutes (same as before, just more machines working simultaneously).\n\nANSWER: 5 minutes`,
-  },
-  {
-    subject: "coding",
-    difficulty: "hard",
-    id: "code-022",
-    text: "What does a stack overflow error typically indicate in a recursive function?",
-    response: `A stack overflow occurs when the call stack exceeds its maximum size.\n\nIn recursive functions, this typically means:\n1. Missing or incorrect base case\n2. The recursion doesn't converge toward the base case\n3. Input is too large for the available stack depth\n\nEach recursive call adds a frame to the stack until memory is exhausted.\n\nANSWER: infinite or excessively deep recursion`,
-  },
-  {
-    subject: "reasoning",
+    subject: "engineering",
     difficulty: "medium",
-    id: "reas-011",
-    text: "You have 8 identical-looking balls. One is heavier. Using a balance scale, what is the minimum number of weighings to find it?",
-    response: `Split 8 balls into groups of 3, 3, and 2.\n\nWeighing 1: Compare the two groups of 3.\n- If equal: heavy ball is in the group of 2. One more weighing finds it.\n- If unequal: heavy ball is in the heavier group of 3.\n\nWeighing 2: From the group of 3, compare any 2 balls.\n- If equal: the third ball is heavy.\n- If unequal: the heavier one is it.\n\nANSWER: 2`,
+    id: "machine-learning-05",
+    text: "Which of the following is a hyperparameter in a neural network?",
+    choices: ["The weights of the network", "The biases of the network", "The learning rate", "The loss value"],
+    response: `Weights and biases are learned parameters — they are updated during training.\nThe loss value is an output metric, not a parameter.\n\nThe learning rate is set before training begins and controls how much weights are updated per step. It is a hyperparameter.\n\nANSWER: C`,
+  },
+  {
+    subject: "science",
+    difficulty: "hard",
+    id: "college-physics-11",
+    text: "A particle moves in a circle of radius r with constant speed v. The magnitude of its acceleration is:",
+    choices: ["v/r", "v²/r", "v·r", "v²·r"],
+    response: `For uniform circular motion, the centripetal acceleration points toward the center.\n\nThe magnitude is a = v²/r, derived from the rate of change of the velocity vector's direction.\n\nANSWER: B`,
+  },
+  {
+    subject: "cs",
+    difficulty: "hard",
+    id: "computer-security-08",
+    text: "Which type of attack involves an attacker inserting themselves between two communicating parties?",
+    choices: ["SQL injection", "Man-in-the-middle", "Cross-site scripting", "Buffer overflow"],
+    response: `SQL injection targets databases via malicious queries.\nXSS injects scripts into web pages.\nBuffer overflow exploits memory management.\n\nA man-in-the-middle (MITM) attack intercepts communication between two parties, allowing the attacker to eavesdrop or alter messages.\n\nANSWER: B`,
   },
   {
     subject: "math",
-    difficulty: "easy",
-    id: "math-003",
-    text: "What is 17 × 23 without a calculator?",
-    response: `I'll break this down:\n17 × 23 = 17 × 20 + 17 × 3\n17 × 20 = 340\n17 × 3 = 51\n340 + 51 = 391\n\nANSWER: 391`,
-  },
-  {
-    subject: "coding",
-    difficulty: "easy",
-    id: "code-004",
-    text: "In a zero-indexed array of length 10, what is the index of the last element?",
-    response: `In zero-indexed arrays:\n- First element: index 0\n- Second element: index 1\n- ...\n- Last element: index (length - 1)\n\nFor length 10: last index = 10 - 1 = 9\n\nANSWER: 9`,
+    difficulty: "medium",
+    id: "college-mathematics-03",
+    text: "The function f(x) = x³ - 3x has local maxima at x =",
+    choices: ["x = 0", "x = 1", "x = -1", "x = 3"],
+    response: `Take the derivative: f'(x) = 3x² - 3 = 3(x² - 1) = 3(x-1)(x+1)\n\nCritical points at x = ±1.\n\nf''(x) = 6x\nf''(-1) = -6 < 0 → local max at x = -1\nf''(1) = 6 > 0 → local min at x = 1\n\nANSWER: C`,
   },
 ];
 
@@ -97,21 +75,28 @@ function getFamily(name: string): string {
   if (name.startsWith("qwen")) return "qwen";
   if (name.startsWith("llama")) return "llama";
   if (name.startsWith("gemma")) return "gemma";
+  if (name.startsWith("deepseek")) return "deepseek";
+  if (name.startsWith("mistral")) return "mistral";
+  if (name.startsWith("smollm2")) return "smollm2";
   return "other";
 }
 
-const MAX_MODEL_SIZE = 4900; // qwen 3 8b
+const MAX_MODEL_SIZE = 5000; // deepseek r1 8b
 
 const MODEL_INFO: Record<string, string> = {
-  "qwen 3 0.6b": "Alibaba's smallest Qwen3 model. Hybrid reasoning with thinking/non-thinking modes. Punches above its weight for basic Q&A and simple math.",
+  "qwen 3 0.6b": "Alibaba's smallest Qwen3 model. Hybrid reasoning with thinking/non-thinking modes. Punches above its weight for basic Q&A.",
   "llama 3.2 1b": "Meta's compact edge model. Optimized for on-device tasks. Struggles with multi-step reasoning but fast and lightweight.",
   "qwen 2.5 1.5b": "Previous-gen Qwen with strong coding and math relative to its size. Good baseline for 1–2B comparisons.",
-  "qwen 3 1.7b": "Latest Qwen3 at 1.7B. Hybrid reasoning mode. Noticeably sharper than 1.5b Qwen2.5 on logic tasks.",
+  "qwen 3 1.7b": "Latest Qwen3 at 1.7B. Hybrid reasoning mode. Noticeably sharper than Qwen2.5 1.5B on technical questions.",
+  "smollm2 1.7b": "HuggingFace's SmolLM2. Trained specifically for efficiency at small scale. Interesting comparison point against Qwen3 1.7B.",
   "gemma 2 2b": "Google DeepMind's Gemma 2. Uses novel interleaved local/global attention. Competitive with models twice its size on some benchmarks.",
   "llama 3.2 3b": "Meta's instruction-tuned 3B. Well-rounded across categories. Good mid-range reference point for the benchmark.",
   "qwen 3 4b": "Qwen3 4B with extended chain-of-thought support. Strong multilingual reasoning. Often closes the gap with 7B models.",
   "qwen 2.5 7b": "Qwen2.5's flagship 7B. Trained on 18T tokens with emphasis on math and code. Solid upper-mid performer.",
-  "qwen 3 8b": "Largest model in the suite. Qwen3 8B with full reasoning capabilities. Sets the ceiling for in-browser performance.",
+  "qwen 3 8b": "Qwen3 8B with full reasoning capabilities. Sets a strong ceiling for in-browser performance.",
+  "deepseek r1 7b": "DeepSeek R1 reasoning model distilled into 7B parameters. Trained with reinforcement learning for chain-of-thought. Strong on STEM.",
+  "deepseek r1 8b": "DeepSeek R1 distilled into Llama 8B. RL-trained reasoning with open weights. Competitive against much larger models.",
+  "mistral 7b": "Mistral AI's 7B instruction model. Efficient architecture with grouped-query attention. Strong baseline at the 7B tier.",
 };
 
 function ModelPanel() {
@@ -124,7 +109,7 @@ function ModelPanel() {
       <div className="flex flex-col gap-3">
         <h3 className="text-2xl font-medium tracking-tight">select a model</h3>
         <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-          9 models from 0.6b to 8b parameters, all running locally in your browser via webgpu. no api keys. no server.
+          13 models from 0.6b to 8b parameters — qwen, llama, gemma, deepseek r1, mistral, smollm2. all running locally via webgpu. no api keys. no server.
         </p>
       </div>
       <motion.div
@@ -240,7 +225,7 @@ function RunPanel() {
       <div className="flex flex-col gap-3">
         <h3 className="text-2xl font-medium tracking-tight">run the suite</h3>
         <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-          20 questions across math, logic, coding, and reasoning. each question tests multi-step reasoning — the key discriminator between model sizes.
+          multiple-choice questions from mmlu — cs, math, science, engineering. hard enough that even 8b models score under 60%. no ceiling.
         </p>
       </div>
 
@@ -277,6 +262,16 @@ function RunPanel() {
         <p className="text-sm leading-relaxed text-foreground/70">
           {question.text}
         </p>
+        {"choices" in question && question.choices && (
+          <div className="flex flex-col gap-1 mt-1">
+            {(question.choices as string[]).map((c, i) => (
+              <span key={i} className="flex gap-2 text-xs text-muted-foreground">
+                <span className="shrink-0 font-mono">{["A", "B", "C", "D"][i]}.</span>
+                <span>{c}</span>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* streaming output */}
@@ -304,10 +299,10 @@ const DIFFICULTY_DATA = [
 ];
 
 const SUBJECT_DATA = [
-  { label: "math", pct: 60 },
-  { label: "logic", pct: 75 },
-  { label: "coding", pct: 45 },
-  { label: "reasoning", pct: 70 },
+  { label: "cs", pct: 52 },
+  { label: "engineering", pct: 44 },
+  { label: "math", pct: 38 },
+  { label: "science", pct: 49 },
 ];
 
 function ReportPanel() {
@@ -319,7 +314,7 @@ function ReportPanel() {
       <div className="flex flex-col gap-3">
         <h3 className="text-2xl font-medium tracking-tight">get your report</h3>
         <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-          accuracy by difficulty is the clearest signal. small models collapse on hard questions; larger ones hold up. subject breakdown shows where capability drops off.
+          see exactly where your model fails — broken down by subject and difficulty. your speed goes on the hardware leaderboard. your accuracy goes on the model leaderboard.
         </p>
       </div>
 

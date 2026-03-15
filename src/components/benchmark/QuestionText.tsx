@@ -45,16 +45,55 @@ const components: Components = {
   },
 };
 
-export function QuestionText({ text }: { text: string }) {
+const CHOICE_LABELS = ["A", "B", "C", "D"] as const;
+
+export function QuestionText({
+  text,
+  choices,
+  highlightCorrect,
+  highlightSelected,
+}: {
+  text: string;
+  choices?: [string, string, string, string];
+  highlightCorrect?: "A" | "B" | "C" | "D";
+  highlightSelected?: "A" | "B" | "C" | "D";
+}) {
   return (
-    <span className="[&>p]:mb-2 [&>p:last-child]:mb-0">
-      <ReactMarkdown
-        remarkPlugins={[remarkMath]}
-        rehypePlugins={[rehypeKatex]}
-        components={components}
-      >
-        {text}
-      </ReactMarkdown>
+    <span className="flex flex-col gap-3">
+      <span className="[&>p]:mb-2 [&>p:last-child]:mb-0">
+        <ReactMarkdown
+          remarkPlugins={[remarkMath]}
+          rehypePlugins={[rehypeKatex]}
+          components={components}
+        >
+          {text}
+        </ReactMarkdown>
+      </span>
+      {choices && (
+        <span className="flex flex-col gap-1.5 mt-1">
+          {choices.map((choice, i) => {
+            const label = CHOICE_LABELS[i];
+            const isCorrect = label === highlightCorrect;
+            const isSelected = label === highlightSelected;
+            const isWrong = isSelected && !isCorrect;
+            return (
+              <span
+                key={label}
+                className={`flex gap-2 rounded-sm px-2 py-1 text-sm leading-snug ${
+                  isCorrect
+                    ? "bg-green-600/10 text-green-700 dark:text-green-400"
+                    : isWrong
+                    ? "bg-red-600/10 text-red-700 dark:text-red-400"
+                    : "text-muted-foreground"
+                }`}
+              >
+                <span className="shrink-0 font-mono font-medium">{label}.</span>
+                <span>{choice}</span>
+              </span>
+            );
+          })}
+        </span>
+      )}
     </span>
   );
 }

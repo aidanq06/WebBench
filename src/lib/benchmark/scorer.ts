@@ -3,7 +3,7 @@ import { BenchmarkReport, SubjectScore, DifficultyScore, HardwareInfo } from "@/
 import { Subject, Difficulty } from "@/types/agent";
 import { AVAILABLE_MODELS } from "@/lib/webllm/models";
 
-const SUBJECTS: Subject[] = ["math", "logic", "coding", "reasoning"];
+const SUBJECTS: Subject[] = ["cs", "engineering", "math", "science"];
 const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
 
 function parseParamBillions(parameterCount: string): number {

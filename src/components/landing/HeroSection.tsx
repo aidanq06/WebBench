@@ -99,15 +99,21 @@ export function HeroSection() {
         </h1>
 
         <p className="max-w-xl text-base text-muted-foreground sm:text-xl">
-          a standardized suite of math, logic, coding, and reasoning questions.
-          runs entirely in your browser via webgpu.
+          hard academic questions from mmlu — cs, math, science, engineering.
+          runs entirely in your browser via webgpu. compete on a global leaderboard.
         </p>
-        <div className="mt-2">
+        <div className="mt-2 flex items-center gap-4">
           <Link
             href="/benchmark"
             className="border bg-primary px-10 py-3.5 text-base text-primary-foreground hover:bg-primary/90"
           >
             run benchmark
+          </Link>
+          <Link
+            href="/leaderboard"
+            className="border px-10 py-3.5 text-base text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+          >
+            leaderboard
           </Link>
         </div>
       </motion.div>

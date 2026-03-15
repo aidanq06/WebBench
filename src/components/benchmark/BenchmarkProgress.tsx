@@ -66,8 +66,8 @@ export function BenchmarkProgress() {
                 {currentQuestion.id}
               </span>
             </div>
-            <div className="text-lg leading-relaxed text-foreground/70">
-              <QuestionText text={currentQuestion.text} />
+            <div className="text-base leading-relaxed text-foreground/70">
+              <QuestionText text={currentQuestion.text} choices={currentQuestion.choices} />
             </div>
           </motion.div>
         )}

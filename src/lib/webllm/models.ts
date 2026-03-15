@@ -60,4 +60,28 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     parameterCount: "8B",
     estimatedSizeMB: 4900,
   },
+  {
+    id: "SmolLM2-1.7B-Instruct-q4f16_1-MLC",
+    displayName: "smollm2 1.7b",
+    parameterCount: "1.7B",
+    estimatedSizeMB: 1100,
+  },
+  {
+    id: "DeepSeek-R1-Distill-Qwen-7B-q4f16_1-MLC",
+    displayName: "deepseek r1 7b",
+    parameterCount: "7B",
+    estimatedSizeMB: 4500,
+  },
+  {
+    id: "DeepSeek-R1-Distill-Llama-8B-q4f16_1-MLC",
+    displayName: "deepseek r1 8b",
+    parameterCount: "8B",
+    estimatedSizeMB: 5000,
+  },
+  {
+    id: "Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
+    displayName: "mistral 7b",
+    parameterCount: "7B",
+    estimatedSizeMB: 4300,
+  },
 ];
