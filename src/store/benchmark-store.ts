@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { QuestionResult } from "@/types/task";
 import { BenchmarkReport } from "@/types/report";
-import { Question } from "@/types/agent";
+import { Question, Subject, Difficulty } from "@/types/agent";
 
 export type BenchmarkPhase = "idle" | "loading-model" | "running" | "complete" | "error";
 
@@ -9,6 +9,8 @@ interface BenchmarkStore {
   phase: BenchmarkPhase;
   selectedModelId: string;
   questionCount: 10 | 20 | 40;
+  subjectFilter: Subject | "all";
+  difficultyFilter: Difficulty | "all";
   loadingProgress: number;
   loadingText: string;
   totalQuestions: number;
@@ -21,6 +23,8 @@ interface BenchmarkStore {
 
   setModel: (id: string) => void;
   setQuestionCount: (n: 10 | 20 | 40) => void;
+  setSubjectFilter: (s: Subject | "all") => void;
+  setDifficultyFilter: (d: Difficulty | "all") => void;
 
   startLoading: () => void;
   setLoadingProgress: (p: number, text: string) => void;
@@ -37,6 +41,8 @@ export const useBenchmarkStore = create<BenchmarkStore>((set) => ({
   phase: "idle",
   selectedModelId: "Qwen3-0.6B-q4f16_1-MLC",
   questionCount: 20,
+  subjectFilter: "all",
+  difficultyFilter: "all",
   loadingProgress: 0,
   loadingText: "",
   totalQuestions: 0,
@@ -49,6 +55,8 @@ export const useBenchmarkStore = create<BenchmarkStore>((set) => ({
 
   setModel: (id) => set({ selectedModelId: id }),
   setQuestionCount: (n) => set({ questionCount: n }),
+  setSubjectFilter: (s) => set({ subjectFilter: s }),
+  setDifficultyFilter: (d) => set({ difficultyFilter: d }),
 
   startLoading: () =>
     set({ phase: "loading-model", loadingProgress: 0, loadingText: "initializing..." }),
@@ -69,6 +77,8 @@ export const useBenchmarkStore = create<BenchmarkStore>((set) => ({
   reset: () =>
     set({
       phase: "idle",
+      subjectFilter: "all",
+      difficultyFilter: "all",
       loadingProgress: 0,
       loadingText: "",
       totalQuestions: 0,
