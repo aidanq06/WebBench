@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useRef, useState, useEffect } from "react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
-import { AVAILABLE_MODELS } from "@/lib/webllm/models";
+// AnimatePresence used in ModelPanel
+import { AVAILABLE_MODELS, modelLogo } from "@/lib/webllm/models";
 
 // ── Demo questions for panel 2 ───────────────────────────────────────────────
 const DEMO_QUESTIONS = [
@@ -78,25 +79,22 @@ function getFamily(name: string): string {
   if (name.startsWith("deepseek")) return "deepseek";
   if (name.startsWith("mistral")) return "mistral";
   if (name.startsWith("smollm2")) return "smollm2";
+  if (name.startsWith("phi")) return "phi";
   return "other";
 }
 
 const MAX_MODEL_SIZE = 5000; // deepseek r1 8b
 
 const MODEL_INFO: Record<string, string> = {
-  "qwen 3 0.6b": "Alibaba's smallest Qwen3 model. Hybrid reasoning with thinking/non-thinking modes. Punches above its weight for basic Q&A.",
+  "qwen3 0.6b": "Alibaba's smallest Qwen3 model. Hybrid reasoning with thinking/non-thinking modes. Punches above its weight for basic Q&A.",
   "llama 3.2 1b": "Meta's compact edge model. Optimized for on-device tasks. Struggles with multi-step reasoning but fast and lightweight.",
-  "qwen 2.5 1.5b": "Previous-gen Qwen with strong coding and math relative to its size. Good baseline for 1–2B comparisons.",
-  "qwen 3 1.7b": "Latest Qwen3 at 1.7B. Hybrid reasoning mode. Noticeably sharper than Qwen2.5 1.5B on technical questions.",
-  "smollm2 1.7b": "HuggingFace's SmolLM2. Trained specifically for efficiency at small scale. Interesting comparison point against Qwen3 1.7B.",
+  "smollm2 1.7b": "HuggingFace's SmolLM2. Trained specifically for efficiency at small scale. Interesting comparison point against larger models.",
   "gemma 2 2b": "Google DeepMind's Gemma 2. Uses novel interleaved local/global attention. Competitive with models twice its size on some benchmarks.",
   "llama 3.2 3b": "Meta's instruction-tuned 3B. Well-rounded across categories. Good mid-range reference point for the benchmark.",
-  "qwen 3 4b": "Qwen3 4B with extended chain-of-thought support. Strong multilingual reasoning. Often closes the gap with 7B models.",
-  "qwen 2.5 7b": "Qwen2.5's flagship 7B. Trained on 18T tokens with emphasis on math and code. Solid upper-mid performer.",
-  "qwen 3 8b": "Qwen3 8B with full reasoning capabilities. Sets a strong ceiling for in-browser performance.",
-  "deepseek r1 7b": "DeepSeek R1 reasoning model distilled into 7B parameters. Trained with reinforcement learning for chain-of-thought. Strong on STEM.",
-  "deepseek r1 8b": "DeepSeek R1 distilled into Llama 8B. RL-trained reasoning with open weights. Competitive against much larger models.",
+  "phi 3.5 mini": "Microsoft's Phi-3.5 Mini at 3.8B. Strong reasoning relative to its size. Competitive with larger models on STEM and logic tasks.",
+  "qwen3 4b": "Qwen3 4B with extended chain-of-thought support. Strong multilingual reasoning. Often closes the gap with 7B models.",
   "mistral 7b": "Mistral AI's 7B instruction model. Efficient architecture with grouped-query attention. Strong baseline at the 7B tier.",
+  "deepseek r1 8b": "DeepSeek R1 distilled into Llama 8B. RL-trained reasoning with open weights. Competitive against much larger models.",
 };
 
 function ModelPanel() {
@@ -109,7 +107,7 @@ function ModelPanel() {
       <div className="flex flex-col gap-3">
         <h3 className="text-2xl font-medium tracking-tight">select a model</h3>
         <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-          13 models from 0.6b to 8b parameters — qwen, llama, gemma, deepseek r1, mistral, smollm2. all running locally via webgpu. no api keys. no server.
+          9 models from 0.6b to 8b parameters — qwen, llama, gemma, phi, deepseek r1, mistral, smollm2. all running locally via webgpu. no api keys. no server.
         </p>
       </div>
       <motion.div
@@ -132,6 +130,14 @@ function ModelPanel() {
               className="group flex cursor-pointer flex-col gap-3 border px-4 py-4 transition-colors hover:border-foreground/20 hover:bg-accent/30"
               style={{ borderColor: isOpen ? "hsl(var(--foreground) / 0.2)" : undefined }}
             >
+              {(() => {
+                const logo = modelLogo(model.id);
+                return logo ? (
+                  <img src={logo} alt="" className="h-6 w-6 object-contain" />
+                ) : (
+                  <span className="h-6 w-6" />
+                );
+              })()}
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">{model.displayName}</span>
                 <span className="font-mono text-[10px] text-muted-foreground/40">
@@ -362,132 +368,56 @@ function ReportPanel() {
   );
 }
 
-// ── Step nav item ─────────────────────────────────────────────────────────────
-const STEPS = [
-  { num: "01", label: "select" },
-  { num: "02", label: "run" },
-  { num: "03", label: "report" },
-];
-
 // ── Main component ────────────────────────────────────────────────────────────
 export function HowItWorks() {
-  const sectionRef = useRef<HTMLElement>(null);
   const panel1Ref = useRef<HTMLDivElement>(null);
   const panel2Ref = useRef<HTMLDivElement>(null);
   const panel3Ref = useRef<HTMLDivElement>(null);
-  const [activeStep, setActiveStep] = useState(0);
 
   const p1Visible = useInView(panel1Ref, { margin: "0px 0px -100px 0px" });
   const p2Visible = useInView(panel2Ref, { margin: "0px 0px -100px 0px" });
   const p3Visible = useInView(panel3Ref, { margin: "0px 0px -100px 0px" });
 
-  const updateActiveStep = useCallback(() => {
-    const panels = [panel1Ref.current, panel2Ref.current, panel3Ref.current];
-    const viewportCenter = window.innerHeight / 2;
-
-    let closest = 0;
-    let closestDist = Infinity;
-
-    for (let i = 0; i < panels.length; i++) {
-      const el = panels[i];
-      if (!el) continue;
-      const rect = el.getBoundingClientRect();
-      const panelCenter = rect.top + rect.height / 2;
-      const dist = Math.abs(panelCenter - viewportCenter);
-      if (dist < closestDist) {
-        closestDist = dist;
-        closest = i;
-      }
-    }
-
-    setActiveStep(closest);
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener("scroll", updateActiveStep, { passive: true });
-    return () => window.removeEventListener("scroll", updateActiveStep);
-  }, [updateActiveStep]);
-
-  const headingRef = useRef<HTMLDivElement>(null);
-  const headingVisible = useInView(headingRef, { once: true, margin: "0px 0px -50px 0px" });
-  const navVisible = useInView(panel1Ref, { margin: "0px 0px -200px 0px" });
-
   return (
-    <section ref={sectionRef} className="px-6">
-      <div className="mx-auto max-w-7xl">
-        <motion.div
-          ref={headingRef}
-          className="py-10"
-          initial={{ opacity: 0, y: 12 }}
-          animate={headingVisible ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.5, ease: "easeOut" }}
+    <section className="px-6">
+      <div className="mx-auto max-w-4xl">
+        <div
+          ref={panel1Ref}
+          className="flex min-h-[85vh] items-center border-b px-14 py-20"
         >
-          <h2 className="text-xs text-muted-foreground">how it works</h2>
-        </motion.div>
+          <motion.div
+            className="w-full"
+            animate={p1Visible ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+          >
+            <ModelPanel />
+          </motion.div>
+        </div>
 
-        <div className="flex">
-          {/* sticky left nav */}
-          <div className="hidden w-[260px] shrink-0 sm:block">
-            <div className="sticky top-24 flex flex-col gap-6 pb-24">
-              {STEPS.map((step, i) => (
-                <motion.div
-                  key={step.num}
-                  className="flex items-baseline gap-3"
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={navVisible ? { opacity: activeStep === i ? 1 : 0.2, x: 0 } : {}}
-                  transition={{
-                    opacity: { duration: 0.3 },
-                    x: { duration: 0.4, delay: i * 0.08, ease: "easeOut" },
-                  }}
-                >
-                  <span className="font-mono text-xs text-muted-foreground">{step.num}</span>
-                  <span className="text-sm font-medium">{step.label}</span>
-                </motion.div>
-              ))}
-            </div>
-          </div>
+        <div
+          ref={panel2Ref}
+          className="flex min-h-[85vh] items-center border-b px-14 py-20"
+        >
+          <motion.div
+            className="w-full"
+            animate={p2Visible ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+          >
+            <RunPanel />
+          </motion.div>
+        </div>
 
-          {/* right panels */}
-          <div className="flex-1 sm:border-l">
-            <div
-              ref={panel1Ref}
-              className="flex min-h-[85vh] items-center border-b px-8 py-20 sm:px-14"
-            >
-              <motion.div
-                className="w-full"
-                animate={p1Visible ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
-              >
-                <ModelPanel />
-              </motion.div>
-            </div>
-
-            <div
-              ref={panel2Ref}
-              className="flex min-h-[85vh] items-center border-b px-8 py-20 sm:px-14"
-            >
-              <motion.div
-                className="w-full"
-                animate={p2Visible ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
-              >
-                <RunPanel />
-              </motion.div>
-            </div>
-
-            <div
-              ref={panel3Ref}
-              className="flex min-h-[85vh] items-center px-8 py-20 sm:px-14"
-            >
-              <motion.div
-                className="w-full"
-                animate={p3Visible ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
-              >
-                <ReportPanel />
-              </motion.div>
-            </div>
-          </div>
+        <div
+          ref={panel3Ref}
+          className="flex min-h-[85vh] items-center px-14 py-20"
+        >
+          <motion.div
+            className="w-full"
+            animate={p3Visible ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+          >
+            <ReportPanel />
+          </motion.div>
         </div>
       </div>
     </section>
