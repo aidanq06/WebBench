@@ -5,88 +5,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useBenchmarkStore } from "@/store/benchmark-store";
 import { Badge } from "@/components/ui/badge";
 import { QuestionText } from "./QuestionText";
-import { parseThoughts, ThoughtSegment } from "@/lib/benchmark/thought-parser";
+import { parseThoughts } from "@/lib/benchmark/thought-parser";
 
-// ── ThoughtCard ────────────────────────────────────────────────────────────────
+// ── Slide variants ─────────────────────────────────────────────────────────────
 
-function ThoughtCard({
-  segment,
-  index,
-  expanded,
-  onToggle,
-}: {
-  segment: ThoughtSegment;
-  index: number;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  if (segment.type === "answer") {
-    const letter = segment.full.match(/ANSWER:\s*([ABCD])/i)?.[1]?.toUpperCase() ?? "";
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2 }}
-        className="flex items-center gap-3 py-2"
-      >
-        <span className="h-px flex-1 bg-muted-foreground/15" />
-        <span className="font-mono text-sm font-medium text-foreground">
-          ANSWER: {letter}
-        </span>
-        <span className="h-px flex-1 bg-muted-foreground/15" />
-      </motion.div>
-    );
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 3 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.18 }}
-      className="flex flex-col"
-    >
-      <button
-        onClick={onToggle}
-        className="flex items-baseline gap-3 py-1.5 text-left transition-colors hover:text-foreground"
-      >
-        <span className="shrink-0 text-[10px] text-muted-foreground/30">
-          {expanded ? "▾" : "◦"}
-        </span>
-        <span className="shrink-0 text-[10px] uppercase tracking-widest text-muted-foreground/30">
-          thought {index + 1}
-        </span>
-        {!expanded && (
-          <span className="truncate text-sm text-muted-foreground/50">
-            {segment.preview}
-          </span>
-        )}
-        {segment.streaming && !expanded && (
-          <span className="ml-1 shrink-0 animate-pulse text-xs text-muted-foreground/30">·</span>
-        )}
-        <span className="ml-auto shrink-0 text-xs text-muted-foreground/20">›</span>
-      </button>
-
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className="overflow-hidden"
-          >
-            <div className="pb-3 pl-[4.5rem] pr-2 text-sm leading-relaxed text-muted-foreground/70">
-              {segment.full}
-              {segment.streaming && (
-                <span className="ml-1 animate-pulse text-muted-foreground/30">▊</span>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
-}
+const slideVariants = {
+  enter: (dir: number) => ({ x: dir > 0 ? 32 : -32, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir: number) => ({ x: dir > 0 ? -32 : 32, opacity: 0 }),
+};
 
 // ── BenchmarkProgress ──────────────────────────────────────────────────────────
 
@@ -104,8 +31,9 @@ export function BenchmarkProgress() {
     abort,
   } = useBenchmarkStore();
 
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [viewingIndex, setViewingIndex] = useState(0);
+  const [direction, setDirection] = useState(1);
+  const prevLengthRef = useRef(0);
 
   const correctCount = completedResults.filter((r) => r.correct).length;
   const progressPct = totalQuestions > 0 ? (completedResults.length / totalQuestions) * 100 : 0;
@@ -114,36 +42,28 @@ export function BenchmarkProgress() {
 
   const thoughts = parseThoughts(streamingText);
 
-  // Auto-expand the answer segment when it appears
+  // Auto-advance to the newest thought when a new paragraph appears
   useEffect(() => {
-    const answer = thoughts.find((t) => t.type === "answer");
-    if (answer) {
-      setExpanded((prev) => {
-        if (prev.has(answer.id)) return prev;
-        return new Set([...prev, answer.id]);
-      });
+    if (thoughts.length > prevLengthRef.current) {
+      setDirection(1);
+      setViewingIndex(thoughts.length - 1);
     }
-  }, [thoughts.length]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Reset expanded state on each new question
-  useEffect(() => {
-    setExpanded(new Set());
-  }, [currentQuestion?.id]);
-
-  // Scroll thought container to bottom only when a new paragraph appears (not every token)
-  useEffect(() => {
-    const el = containerRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    prevLengthRef.current = thoughts.length;
   }, [thoughts.length]);
 
-  function toggle(id: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  // Reset on each new question
+  useEffect(() => {
+    setViewingIndex(0);
+    setDirection(1);
+    prevLengthRef.current = 0;
+  }, [currentQuestion?.id]);
+
+  function goTo(index: number) {
+    setDirection(index > viewingIndex ? 1 : -1);
+    setViewingIndex(index);
   }
+
+  const current = thoughts[viewingIndex] ?? null;
 
   return (
     <div className="flex h-full flex-col gap-5">
@@ -187,9 +107,10 @@ export function BenchmarkProgress() {
         )}
       </AnimatePresence>
 
-      {/* thinking / thought chart — fills remaining space */}
-      <div className="relative min-h-0 flex-1">
-        {/* thinking indicator — before first token */}
+      {/* thought viewer — fills remaining space */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+
+        {/* thinking indicator */}
         <AnimatePresence>
           {!streamingText && currentQuestion && !isShowingResult && (
             <motion.div
@@ -206,31 +127,60 @@ export function BenchmarkProgress() {
           )}
         </AnimatePresence>
 
-        {/* thought chart */}
-        {thoughts.length > 0 && (
-          <div className="absolute inset-0 flex flex-col">
-            {/* top fade */}
-            <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-gradient-to-b from-background to-transparent" />
+        {/* single thought card */}
+        {thoughts.length > 0 && current && (
+          <div className="relative min-h-0 flex-1 overflow-hidden">
+            <AnimatePresence mode="wait" custom={direction}>
+              <motion.div
+                key={viewingIndex}
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.22, ease: "easeOut" }}
+                className="absolute inset-0 overflow-y-auto [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20"
+              >
+                {current.type === "answer" ? (
+                  <div className="flex items-center gap-3 py-3">
+                    <span className="h-px flex-1 bg-muted-foreground/15" />
+                    <span className="font-mono text-sm font-medium text-foreground">
+                      ANSWER: {current.full.match(/ANSWER:\s*([ABCD])/i)?.[1]?.toUpperCase() ?? ""}
+                    </span>
+                    <span className="h-px flex-1 bg-muted-foreground/15" />
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2 pr-1">
+                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground/30">
+                      thought {viewingIndex + 1}
+                    </span>
+                    <p className="text-sm leading-relaxed text-muted-foreground/70">
+                      {current.full}
+                      {current.streaming && (
+                        <span className="ml-1 animate-pulse text-muted-foreground/30">▊</span>
+                      )}
+                    </p>
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        )}
 
-            <div
-              ref={containerRef}
-              className="h-full overflow-y-auto [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20"
-            >
-              <div className="flex flex-col divide-y divide-muted-foreground/[0.06] py-1">
-                {thoughts.map((segment, i) => (
-                  <ThoughtCard
-                    key={segment.id}
-                    segment={segment}
-                    index={i}
-                    expanded={expanded.has(segment.id)}
-                    onToggle={() => toggle(segment.id)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* bottom fade */}
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-background to-transparent" />
+        {/* dot navigation */}
+        {thoughts.length > 1 && (
+          <div className="flex flex-shrink-0 items-center justify-center gap-2">
+            {thoughts.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => goTo(i)}
+                className={`h-1 rounded-full transition-all duration-200 ${
+                  i === viewingIndex
+                    ? "w-4 bg-foreground/60"
+                    : "w-1 bg-muted-foreground/20 hover:bg-muted-foreground/40"
+                }`}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -291,7 +241,7 @@ export function BenchmarkProgress() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 text-xs text-muted-foreground/40">
           <span className="uppercase tracking-widest">advance</span>
-          {(["auto", "manual"] as const).map((mode, i, arr) => (
+          {(["auto", "manual"] as const).map((mode, i) => (
             <span key={mode} className="flex items-center">
               {i > 0 && <span className="mx-1.5 text-muted-foreground/15">·</span>}
               <button
