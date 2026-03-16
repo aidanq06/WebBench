@@ -104,7 +104,7 @@ export function BenchmarkProgress() {
   } = useBenchmarkStore();
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const correctCount = completedResults.filter((r) => r.correct).length;
   const progressPct = totalQuestions > 0 ? (completedResults.length / totalQuestions) * 100 : 0;
@@ -129,10 +129,11 @@ export function BenchmarkProgress() {
     setExpanded(new Set());
   }, [currentQuestion?.id]);
 
-  // Scroll to bottom as new thoughts appear
+  // Scroll thought container to bottom as new thoughts/content appear
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [thoughts.length]);
+    const el = containerRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [thoughts.length, streamingText]);
 
   function toggle(id: string) {
     setExpanded((prev) => {
@@ -204,20 +205,31 @@ export function BenchmarkProgress() {
 
       {/* thought chart */}
       {thoughts.length > 0 && (
-        <div className="flex flex-col divide-y divide-muted-foreground/[0.06]">
-          {thoughts.map((segment, i) => (
-            <ThoughtCard
-              key={segment.id}
-              segment={segment}
-              index={i}
-              expanded={expanded.has(segment.id)}
-              onToggle={() => toggle(segment.id)}
-            />
-          ))}
+        <div className="relative">
+          {/* top fade — signals scrollable content above */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-gradient-to-b from-background to-transparent" />
+
+          <div
+            ref={containerRef}
+            className="h-64 overflow-y-auto [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20"
+          >
+            <div className="flex flex-col divide-y divide-muted-foreground/[0.06] py-1">
+              {thoughts.map((segment, i) => (
+                <ThoughtCard
+                  key={segment.id}
+                  segment={segment}
+                  index={i}
+                  expanded={expanded.has(segment.id)}
+                  onToggle={() => toggle(segment.id)}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* bottom fade — signals scrollable content below */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-background to-transparent" />
         </div>
       )}
-
-      <div ref={bottomRef} />
 
       {/* result flash */}
       <AnimatePresence>
