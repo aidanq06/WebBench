@@ -11,6 +11,7 @@ interface BenchmarkStore {
   questionCount: 10 | 20 | 40;
   subjectFilter: Subject | "all";
   difficultyFilter: Difficulty | "all";
+  advanceMode: "auto" | "manual";
   loadingProgress: number;
   loadingText: string;
   totalQuestions: number;
@@ -20,11 +21,15 @@ interface BenchmarkStore {
   completedResults: QuestionResult[];
   report: BenchmarkReport | null;
   error: string | null;
+  waitingForAdvance: boolean;
+  advanceResolver: (() => void) | null;
+  aborted: boolean;
 
   setModel: (id: string) => void;
   setQuestionCount: (n: 10 | 20 | 40) => void;
   setSubjectFilter: (s: Subject | "all") => void;
   setDifficultyFilter: (d: Difficulty | "all") => void;
+  setAdvanceMode: (m: "auto" | "manual") => void;
 
   startLoading: () => void;
   setLoadingProgress: (p: number, text: string) => void;
@@ -35,14 +40,19 @@ interface BenchmarkStore {
   complete: (report: BenchmarkReport) => void;
   setError: (msg: string) => void;
   reset: () => void;
+
+  setWaitingForAdvance: (waiting: boolean, resolver: (() => void) | null) => void;
+  triggerAdvance: () => void;
+  abort: () => void;
 }
 
-export const useBenchmarkStore = create<BenchmarkStore>((set) => ({
+export const useBenchmarkStore = create<BenchmarkStore>((set, get) => ({
   phase: "idle",
   selectedModelId: "Qwen3-0.6B-q4f16_1-MLC",
   questionCount: 20,
   subjectFilter: "all",
   difficultyFilter: "all",
+  advanceMode: "auto",
   loadingProgress: 0,
   loadingText: "",
   totalQuestions: 0,
@@ -52,18 +62,22 @@ export const useBenchmarkStore = create<BenchmarkStore>((set) => ({
   completedResults: [],
   report: null,
   error: null,
+  waitingForAdvance: false,
+  advanceResolver: null,
+  aborted: false,
 
   setModel: (id) => set({ selectedModelId: id }),
   setQuestionCount: (n) => set({ questionCount: n }),
   setSubjectFilter: (s) => set({ subjectFilter: s }),
   setDifficultyFilter: (d) => set({ difficultyFilter: d }),
+  setAdvanceMode: (m) => set({ advanceMode: m }),
 
   startLoading: () =>
     set({ phase: "loading-model", loadingProgress: 0, loadingText: "initializing..." }),
   setLoadingProgress: (p, text) =>
     set({ loadingProgress: p, loadingText: text }),
   start: (total) =>
-    set({ phase: "running", totalQuestions: total, currentQuestionIndex: 0, completedResults: [], streamingText: "", currentQuestion: null }),
+    set({ phase: "running", totalQuestions: total, currentQuestionIndex: 0, completedResults: [], streamingText: "", currentQuestion: null, aborted: false, waitingForAdvance: false, advanceResolver: null }),
   startQuestion: (index, question) =>
     set({ currentQuestionIndex: index, currentQuestion: question, streamingText: "" }),
   setStreamingText: (text) =>
@@ -74,11 +88,26 @@ export const useBenchmarkStore = create<BenchmarkStore>((set) => ({
     set({ phase: "complete", report }),
   setError: (msg) =>
     set({ phase: "error", error: msg }),
+
+  setWaitingForAdvance: (waiting, resolver) =>
+    set({ waitingForAdvance: waiting, advanceResolver: resolver }),
+  triggerAdvance: () => {
+    const { advanceResolver } = get();
+    if (advanceResolver) advanceResolver();
+    set({ waitingForAdvance: false, advanceResolver: null });
+  },
+  abort: () => {
+    const { advanceResolver } = get();
+    if (advanceResolver) advanceResolver();
+    set({ aborted: true, waitingForAdvance: false, advanceResolver: null });
+  },
+
   reset: () =>
     set({
       phase: "idle",
       subjectFilter: "all",
       difficultyFilter: "all",
+      advanceMode: "auto",
       loadingProgress: 0,
       loadingText: "",
       totalQuestions: 0,
@@ -88,5 +117,8 @@ export const useBenchmarkStore = create<BenchmarkStore>((set) => ({
       completedResults: [],
       report: null,
       error: null,
+      waitingForAdvance: false,
+      advanceResolver: null,
+      aborted: false,
     }),
 }));
