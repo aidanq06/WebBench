@@ -14,8 +14,20 @@ Where X is the single letter (A, B, C, or D) of the correct option.
 The ANSWER line must contain only the letter — nothing else.`;
 
 function extractAnswer(text: string): string {
-  const match = text.match(/ANSWER:\s*([ABCD])/i);
-  return match ? match[1].toUpperCase() : "";
+  // 1. Preferred: explicit ANSWER line
+  let m = text.match(/ANSWER:\s*([ABCD])/i);
+  if (m) return m[1].toUpperCase();
+  // 2. "the answer is X"
+  m = text.match(/the\s+answer\s+is\s+([ABCD])\b/i);
+  if (m) return m[1].toUpperCase();
+  // 3. "answer: X" anywhere
+  m = text.match(/answer[:\s]+([ABCD])\b/i);
+  if (m) return m[1].toUpperCase();
+  // 4. Last standalone capital letter near end of response
+  const tail = text.slice(-200);
+  const letters = [...tail.matchAll(/\b([ABCD])\b/g)];
+  if (letters.length) return letters[letters.length - 1][1].toUpperCase();
+  return "";
 }
 
 function checkAnswer(extracted: string, expected: string): boolean {
@@ -41,10 +53,10 @@ export async function runQABenchmark(
 
   for (let i = 0; i < questions.length; i++) {
     const question = questions[i];
-    store.startQuestion(i, question);
+    useBenchmarkStore.getState().startQuestion(i, question);
 
     const choicesText = question.choices
-      .map((c, i) => `${["A", "B", "C", "D"][i]}. ${c}`)
+      .map((c, idx) => `${["A", "B", "C", "D"][idx]}. ${c}`)
       .join("\n");
     const messages = [
       { role: "system", content: SYSTEM_PROMPT },
@@ -85,10 +97,21 @@ export async function runQABenchmark(
     };
 
     results.push(result);
-    store.advanceQuestion(result);
+    useBenchmarkStore.getState().advanceQuestion(result);
 
-    // brief pause to let result flash render
-    await new Promise((r) => setTimeout(r, 1200));
+    // Check abort before waiting
+    if (useBenchmarkStore.getState().aborted) break;
+
+    const advanceMode = useBenchmarkStore.getState().advanceMode;
+    if (advanceMode === "manual") {
+      await new Promise<void>(resolve => {
+        useBenchmarkStore.getState().setWaitingForAdvance(true, resolve);
+      });
+    } else {
+      await new Promise(r => setTimeout(r, 1000));
+    }
+
+    if (useBenchmarkStore.getState().aborted) break;
   }
 
   // ~4 chars per token is a reasonable approximation for English text
@@ -115,5 +138,5 @@ export async function runQABenchmark(
     // DB save failed — local sessionStorage copy still available
   }
 
-  store.complete(report);
+  useBenchmarkStore.getState().complete(report);
 }
