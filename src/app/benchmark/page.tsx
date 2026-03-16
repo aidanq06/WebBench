@@ -126,6 +126,19 @@ export default function BenchmarkPage() {
 
   const logo = modelLogo(selectedModelId);
 
+  if (phase === "running") {
+    return (
+      <div className="flex h-screen flex-col overflow-hidden">
+        <Navbar />
+        <div className="flex flex-1 flex-col items-center overflow-hidden px-6 py-6">
+          <div className="flex h-full w-full max-w-2xl flex-col">
+            <BenchmarkProgress />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
@@ -276,9 +289,6 @@ export default function BenchmarkPage() {
               </div>
             </motion.div>
           )}
-
-          {/* ── running ── */}
-          {phase === "running" && <BenchmarkProgress />}
 
           {/* ── error ── */}
           {phase === "error" && (

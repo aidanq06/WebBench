@@ -145,7 +145,7 @@ export function BenchmarkProgress() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex h-full flex-col gap-5">
       {/* progress bar + counter */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -170,7 +170,7 @@ export function BenchmarkProgress() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="flex flex-col gap-5 border p-10"
+            className="flex flex-col gap-4 border p-6"
           >
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className="text-xs">{currentQuestion.subject}</Badge>
@@ -186,50 +186,53 @@ export function BenchmarkProgress() {
         )}
       </AnimatePresence>
 
-      {/* thinking indicator — before first token */}
-      <AnimatePresence>
-        {!streamingText && currentQuestion && !isShowingResult && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground/40"
-          >
-            <span className="animate-pulse">thinking</span>
-            <span className="animate-pulse" style={{ animationDelay: "0.15s" }}>·</span>
-            <span className="animate-pulse" style={{ animationDelay: "0.3s" }}>·</span>
-            <span className="animate-pulse" style={{ animationDelay: "0.45s" }}>·</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* thinking / thought chart — fills remaining space */}
+      <div className="relative min-h-0 flex-1">
+        {/* thinking indicator — before first token */}
+        <AnimatePresence>
+          {!streamingText && currentQuestion && !isShowingResult && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground/40"
+            >
+              <span className="animate-pulse">thinking</span>
+              <span className="animate-pulse" style={{ animationDelay: "0.15s" }}>·</span>
+              <span className="animate-pulse" style={{ animationDelay: "0.3s" }}>·</span>
+              <span className="animate-pulse" style={{ animationDelay: "0.45s" }}>·</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      {/* thought chart */}
-      {thoughts.length > 0 && (
-        <div className="relative">
-          {/* top fade — signals scrollable content above */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-gradient-to-b from-background to-transparent" />
+        {/* thought chart */}
+        {thoughts.length > 0 && (
+          <div className="absolute inset-0 flex flex-col">
+            {/* top fade */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-gradient-to-b from-background to-transparent" />
 
-          <div
-            ref={containerRef}
-            className="h-64 overflow-y-auto [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20"
-          >
-            <div className="flex flex-col divide-y divide-muted-foreground/[0.06] py-1">
-              {thoughts.map((segment, i) => (
-                <ThoughtCard
-                  key={segment.id}
-                  segment={segment}
-                  index={i}
-                  expanded={expanded.has(segment.id)}
-                  onToggle={() => toggle(segment.id)}
-                />
-              ))}
+            <div
+              ref={containerRef}
+              className="h-full overflow-y-auto [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20"
+            >
+              <div className="flex flex-col divide-y divide-muted-foreground/[0.06] py-1">
+                {thoughts.map((segment, i) => (
+                  <ThoughtCard
+                    key={segment.id}
+                    segment={segment}
+                    index={i}
+                    expanded={expanded.has(segment.id)}
+                    onToggle={() => toggle(segment.id)}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* bottom fade — signals scrollable content below */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-background to-transparent" />
-        </div>
-      )}
+            {/* bottom fade */}
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-background to-transparent" />
+          </div>
+        )}
+      </div>
 
       {/* result flash */}
       <AnimatePresence>
