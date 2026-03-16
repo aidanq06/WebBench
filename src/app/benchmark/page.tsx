@@ -157,7 +157,7 @@ export default function BenchmarkPage() {
                       </p>
                     )}
                   </div>
-                  <ModelSelector onSelect={handleModelSelect} suggestedModelId={suggestedModelId} />
+                  <ModelSelector onSelect={handleModelSelect} />
                 </motion.div>
 
               ) : (
