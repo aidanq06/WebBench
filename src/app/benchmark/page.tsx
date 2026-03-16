@@ -77,13 +77,11 @@ export default function BenchmarkPage() {
     questionCount,
     subjectFilter,
     difficultyFilter,
-    advanceMode,
     loadingProgress,
     loadingText,
     setQuestionCount,
     setSubjectFilter,
     setDifficultyFilter,
-    setAdvanceMode,
   } = useBenchmarkStore();
 
   const selectedModel = AVAILABLE_MODELS.find((m) => m.id === selectedModelId);
@@ -243,14 +241,6 @@ export default function BenchmarkPage() {
                     options={DIFFICULTIES as string[]}
                     active={difficultyFilter}
                     onSelect={(v) => setDifficultyFilter(v as Difficulty | "all")}
-                  />
-
-                  {/* advance */}
-                  <OptionRow
-                    label="advance"
-                    options={["auto", "manual"]}
-                    active={advanceMode}
-                    onSelect={(v) => setAdvanceMode(v as "auto" | "manual")}
                   />
 
                   {/* run */}

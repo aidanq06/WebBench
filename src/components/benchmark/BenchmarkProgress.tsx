@@ -99,6 +99,7 @@ export function BenchmarkProgress() {
     streamingText,
     waitingForAdvance,
     advanceMode,
+    setAdvanceMode,
     triggerAdvance,
     abort,
   } = useBenchmarkStore();
@@ -129,11 +130,11 @@ export function BenchmarkProgress() {
     setExpanded(new Set());
   }, [currentQuestion?.id]);
 
-  // Scroll thought container to bottom as new thoughts/content appear
+  // Scroll thought container to bottom only when a new paragraph appears (not every token)
   useEffect(() => {
     const el = containerRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [thoughts.length, streamingText]);
+  }, [thoughts.length]);
 
   function toggle(id: string) {
     setExpanded((prev) => {
@@ -270,7 +271,7 @@ export function BenchmarkProgress() {
         )}
       </AnimatePresence>
 
-      {/* manual advance button */}
+      {/* next question button — manual mode only */}
       <AnimatePresence>
         {waitingForAdvance && advanceMode === "manual" && (
           <motion.button
@@ -279,15 +280,33 @@ export function BenchmarkProgress() {
             exit={{ opacity: 0 }}
             onClick={triggerAdvance}
             whileTap={{ scale: 0.99 }}
-            className="w-full border bg-primary py-5 text-base text-primary-foreground transition-colors hover:bg-primary/90"
+            className="w-full border bg-primary py-4 text-base text-primary-foreground transition-colors hover:bg-primary/90"
           >
             next question →
           </motion.button>
         )}
       </AnimatePresence>
 
-      {/* end benchmark */}
-      <div className="flex justify-end">
+      {/* bottom bar: mode toggle + end */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3 text-xs text-muted-foreground/40">
+          <span className="uppercase tracking-widest">advance</span>
+          {(["auto", "manual"] as const).map((mode, i, arr) => (
+            <span key={mode} className="flex items-center">
+              {i > 0 && <span className="mx-1.5 text-muted-foreground/15">·</span>}
+              <button
+                onClick={() => setAdvanceMode(mode)}
+                className={`transition-colors duration-150 ${
+                  advanceMode === mode
+                    ? "font-medium text-foreground"
+                    : "text-muted-foreground/30 hover:text-muted-foreground"
+                }`}
+              >
+                {mode}
+              </button>
+            </span>
+          ))}
+        </div>
         <button
           onClick={abort}
           className="text-xs text-muted-foreground/30 transition-colors hover:text-destructive"
