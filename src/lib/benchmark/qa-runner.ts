@@ -3,7 +3,6 @@ import { generateReport } from "./scorer";
 import { generateStream } from "@/lib/webllm/engine-client";
 import { useBenchmarkStore } from "@/store/benchmark-store";
 import { QuestionResult } from "@/types/task";
-import { createClient } from "@/lib/supabase/client";
 import { detectHardware } from "@/lib/hardware/detect";
 
 const SYSTEM_PROMPT = `You are a multiple-choice benchmark assistant. For each question:
@@ -66,19 +65,28 @@ export async function runQABenchmark(
     const startTime = Date.now();
     let modelResponse = "";
 
+    const controller = new AbortController();
+    useBenchmarkStore.getState().setAbortStreamCallback(() => controller.abort());
+
     try {
       modelResponse = await generateStream(
         messages,
-        { temperature: 0.1, max_tokens: 1024, stopOnAnswerLine: true },
+        { temperature: 0.1, max_tokens: 1024, stopOnAnswerLine: true, signal: controller.signal },
         (fullText) => {
           useBenchmarkStore.getState().setStreamingText(fullText);
         }
       );
     } catch {
       modelResponse = "";
+    } finally {
+      useBenchmarkStore.getState().setAbortStreamCallback(null);
     }
 
     const timeTakenMs = Date.now() - startTime;
+
+    // If aborted mid-stream, skip scoring this question entirely
+    if (useBenchmarkStore.getState().aborted) break;
+
     totalCharsGenerated += modelResponse.length;
     totalInferenceMs += timeTakenMs;
 
@@ -98,9 +106,6 @@ export async function runQABenchmark(
 
     results.push(result);
     useBenchmarkStore.getState().advanceQuestion(result);
-
-    // Check abort before waiting
-    if (useBenchmarkStore.getState().aborted) break;
 
     const advanceMode = useBenchmarkStore.getState().advanceMode;
     if (advanceMode === "manual") {
@@ -123,17 +128,13 @@ export async function runQABenchmark(
   const report = generateReport(results, modelId, String(questionCount), runId, tokensPerSecond, hardware);
   sessionStorage.setItem(`report-${runId}`, JSON.stringify(report));
 
-  // Save to DB if signed in (fire-and-forget — local report already saved)
+  // Save to DB — fire-and-forget, local sessionStorage copy always available
   try {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await fetch("/api/reports", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(report),
-      });
-    }
+    await fetch("/api/reports", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(report),
+    });
   } catch {
     // DB save failed — local sessionStorage copy still available
   }

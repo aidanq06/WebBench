@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { motion, useInView, AnimatePresence } from "framer-motion";
+import { motion, useInView, AnimatePresence, animate, useMotionValue } from "framer-motion";
 // AnimatePresence used in ModelPanel
 import { AVAILABLE_MODELS, modelLogo } from "@/lib/webllm/models";
+import { SCORING } from "@/lib/benchmark/scoring-config";
 
 // ── Demo questions for panel 2 ───────────────────────────────────────────────
 const DEMO_QUESTIONS = [
@@ -298,69 +299,133 @@ function RunPanel() {
 }
 
 // ── Panel 3: Report mockup ────────────────────────────────────────────────────
-const DIFFICULTY_DATA = [
-  { label: "easy", pct: 82, correct: 14, total: 17 },
-  { label: "medium", pct: 54, correct: 9, total: 17 },
-  { label: "hard", pct: 21, correct: 3, total: 16 },
+const SUBJECT_DATA = [
+  { label: "cs", correct: 5, total: 5 },
+  { label: "engineering", correct: 4, total: 5 },
+  { label: "math", correct: 3, total: 5 },
+  { label: "science", correct: 5, total: 5 },
 ];
 
-const SUBJECT_DATA = [
-  { label: "cs", pct: 52 },
-  { label: "engineering", pct: 44 },
-  { label: "math", pct: 38 },
-  { label: "science", pct: 49 },
+const DIFFICULTY_DATA = [
+  { label: "easy", correct: 7, total: 8 },
+  { label: "medium", correct: 6, total: 8 },
+  { label: "hard", correct: 4, total: 4 },
 ];
+
+// compute mock score from DIFFICULTY_DATA using live scoring config
+const _mockAchieved = DIFFICULTY_DATA.reduce(
+  (s, d) => s + d.correct * SCORING.weights[d.label as keyof typeof SCORING.weights],
+  0
+);
+const _mockPossible = DIFFICULTY_DATA.reduce((s, d) => s + d.total, 0) * SCORING.weights.hard;
+const MOCK_SCORE = Math.round((_mockAchieved / _mockPossible) * SCORING.scale);
+
+// 20 mock results (17/20 correct)
+const MOCK_RESULTS = [
+  true, true, false, true, true, true, true, false, true, true,
+  true, true, true, true, false, true, true, true, false, true,
+];
+
+function AnimatedPtsDemo({
+  value,
+  delay,
+  inView,
+}: {
+  value: number;
+  delay: number;
+  inView: boolean;
+}) {
+  const mv = useMotionValue(0);
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    if (!inView) { setDisplay(0); return; }
+    const controls = animate(mv, value, {
+      duration: 0.6,
+      delay,
+      ease: "easeOut",
+      onUpdate: (v) => setDisplay(Math.round(v)),
+    });
+    return () => controls.stop();
+  }, [value, inView]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return <>{display}</>;
+}
 
 function ReportPanel() {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { margin: "0px 0px -80px 0px" });
+
+  const { weights, scale } = SCORING;
+  const totalQuestions = DIFFICULTY_DATA.reduce((s, d) => s + d.total, 0);
+  const possible = totalQuestions * weights.hard;
+
+  const tiers = DIFFICULTY_DATA.map((d, i) => {
+    const pts = Math.round((d.correct * weights[d.label as keyof typeof weights]) / possible * scale);
+    const maxPts = Math.round((d.total * weights[d.label as keyof typeof weights]) / possible * scale);
+    const fillPct = maxPts > 0 ? (pts / maxPts) * 100 : 0;
+    return { ...d, pts, maxPts, fillPct, delay: 0.15 + i * 0.1 };
+  });
 
   return (
     <div ref={ref} className="flex w-full flex-col gap-8">
       <div className="flex flex-col gap-3">
         <h3 className="text-2xl font-medium tracking-tight">get your report</h3>
         <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-          see exactly where your model fails — broken down by subject and difficulty. your speed goes on the hardware leaderboard. your accuracy goes on the model leaderboard.
+          see exactly where your model fails — broken down by subject and difficulty. click any question to review the full reasoning.
         </p>
       </div>
 
-      {/* difficulty blocks */}
-      <div className="flex flex-col gap-3">
-        <div className="text-xs text-muted-foreground">difficulty curve</div>
-        <div className="flex gap-2">
-          {DIFFICULTY_DATA.map((d, i) => (
-            <motion.div
-              key={d.label}
-              animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-              transition={{ duration: 0.4, delay: inView ? i * 0.1 : 0, ease: "easeOut" }}
-              className="flex flex-1 flex-col items-center gap-1.5 border p-5"
-            >
-              <span className="text-3xl font-medium tracking-tight">{d.pct}%</span>
-              <span className="text-xs text-muted-foreground">{d.label}</span>
-              <span className="text-[10px] text-muted-foreground/40">{d.correct}/{d.total}</span>
-            </motion.div>
-          ))}
+      {/* score hero */}
+      <motion.div
+        className="flex flex-col gap-6"
+        animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+      >
+        <div className="flex items-baseline gap-2">
+          <span className="text-6xl font-medium tracking-tight">{MOCK_SCORE}</span>
+          <span className="text-xl text-muted-foreground/30">/ 1000</span>
         </div>
-      </div>
 
-      {/* subject bars */}
-      <div className="flex flex-col gap-3">
-        <div className="text-xs text-muted-foreground">by subject</div>
-        <div className="flex flex-col gap-3">
-          {SUBJECT_DATA.map((s, i) => (
-            <div key={s.label} className="flex items-center gap-4">
-              <span className="w-20 shrink-0 text-sm text-muted-foreground">{s.label}</span>
-              <div className="relative h-1 flex-1 bg-secondary">
+        {/* score breakdown */}
+        <div className="flex flex-col gap-1">
+          {tiers.map((tier) => (
+            <div key={tier.label} className="-mx-3 flex items-center gap-4 px-3 py-3">
+              <span className="w-16 shrink-0 text-xs text-muted-foreground">{tier.label}</span>
+              <div className="relative h-px flex-1 bg-secondary">
                 <motion.div
                   className="absolute inset-y-0 left-0 bg-foreground"
-                  animate={inView ? { width: `${s.pct}%` } : { width: 0 }}
-                  transition={{ duration: 0.8, delay: inView ? 0.3 + i * 0.1 : 0, ease: "easeOut" }}
+                  animate={inView ? { width: `${tier.fillPct}%` } : { width: 0 }}
+                  transition={{ duration: 0.65, delay: tier.delay, ease: "easeOut" }}
                 />
               </div>
-              <span className="w-10 shrink-0 text-right text-sm text-muted-foreground/60">
-                {s.pct}%
+              <span className="w-10 shrink-0 text-right font-mono text-[10px] tabular-nums text-muted-foreground/35">
+                {tier.correct}/{tier.total}
+              </span>
+              <span className="w-24 shrink-0 text-right text-base font-semibold tabular-nums">
+                +<AnimatedPtsDemo value={tier.pts} delay={tier.delay} inView={inView} />
+                <span className="ml-1 text-[10px] font-normal text-muted-foreground/40">pts</span>
               </span>
             </div>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* question chips */}
+      <div className="flex flex-col gap-3">
+        <div className="text-xs text-muted-foreground">questions</div>
+        <div className="flex flex-wrap gap-1.5">
+          {MOCK_RESULTS.map((correct, i) => (
+            <motion.div
+              key={i}
+              animate={inView ? { opacity: 0.4 } : { opacity: 0 }}
+              transition={{ duration: 0.3, delay: inView ? 0.5 + i * 0.025 : 0, ease: "easeOut" }}
+              className={`flex h-7 w-7 items-center justify-center border font-mono text-[10px] ${
+                correct ? "border-green-500/40 text-green-500" : "border-red-500/40 text-red-500"
+              }`}
+            >
+              {String(i + 1).padStart(2, "0")}
+            </motion.div>
           ))}
         </div>
       </div>

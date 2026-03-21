@@ -25,6 +25,7 @@ export interface HardwareInfo {
   browser: string;
   os: string;
   webgpuBackend: string;
+  maxBufferBytes: number; // adapter.limits.maxBufferSize — proxy for available GPU memory
 }
 
 export interface BenchmarkReport {
@@ -38,6 +39,7 @@ export interface BenchmarkReport {
   avgTimeMs: number;
   tokensPerSecond: number;
   efficiencyScore: number;
+  score: number;
   hardware: HardwareInfo;
   subjectScores: SubjectScore[];
   difficultyScores: DifficultyScore[];

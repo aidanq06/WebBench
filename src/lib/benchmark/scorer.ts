@@ -2,6 +2,7 @@ import { QuestionResult } from "@/types/task";
 import { BenchmarkReport, SubjectScore, DifficultyScore, HardwareInfo } from "@/types/report";
 import { Subject, Difficulty } from "@/types/agent";
 import { AVAILABLE_MODELS } from "@/lib/webllm/models";
+import { SCORING } from "./scoring-config";
 
 const SUBJECTS: Subject[] = ["cs", "engineering", "math", "science"];
 const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
@@ -56,6 +57,13 @@ export function generateReport(
     };
   }).filter((s) => s.total > 0);
 
+  const { weights, scale } = SCORING;
+  const achieved = results.reduce(
+    (s, r) => s + (r.correct ? weights[r.difficulty] : 0), 0
+  );
+  const possible = results.length * weights.hard;
+  const score = possible > 0 ? Math.round((achieved / possible) * scale) : 0;
+
   return {
     runId,
     modelId,
@@ -67,6 +75,7 @@ export function generateReport(
     avgTimeMs,
     tokensPerSecond,
     efficiencyScore,
+    score,
     hardware,
     subjectScores,
     difficultyScores,

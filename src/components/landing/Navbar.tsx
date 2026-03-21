@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { TerminalIcon } from "lucide-react";
 import { CacheSettings } from "./CacheSettings";
-import { AuthButton } from "./AuthButton";
 
 export function Navbar() {
   return (
@@ -39,7 +38,6 @@ export function Navbar() {
             github
           </a>
           <CacheSettings />
-          <AuthButton />
         </nav>
       </div>
     </header>

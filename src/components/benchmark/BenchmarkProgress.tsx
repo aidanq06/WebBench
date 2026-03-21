@@ -3,17 +3,74 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useBenchmarkStore } from "@/store/benchmark-store";
-import { Badge } from "@/components/ui/badge";
 import { QuestionText } from "./QuestionText";
-import { parseThoughts } from "@/lib/benchmark/thought-parser";
+import { parseThoughts, ThoughtSegment } from "@/lib/benchmark/thought-parser";
 
-// ── Slide variants ─────────────────────────────────────────────────────────────
+function questionFontClass(text: string, choices: string[]): string {
+  const len = text.length + choices.join("").length;
+  if (len < 150) return "text-lg";
+  if (len < 300) return "text-base";
+  if (len < 500) return "text-sm";
+  return "text-xs";
+}
 
-const slideVariants = {
-  enter: (dir: number) => ({ x: dir > 0 ? 32 : -32, opacity: 0 }),
-  center: { x: 0, opacity: 1 },
-  exit: (dir: number) => ({ x: dir > 0 ? -32 : 32, opacity: 0 }),
-};
+// ── ThoughtStep ────────────────────────────────────────────────────────────────
+
+function ThoughtStep({
+  thought,
+  isExpanded,
+  onToggle,
+}: {
+  thought: ThoughtSegment;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  const canExpand = !thought.streaming && thought.full.length > thought.preview.length;
+
+  return (
+    <div className="flex flex-col">
+      <button onClick={onToggle} className="group flex items-start gap-2.5 text-left">
+        <span
+          className={`mt-[5px] h-1 w-1 shrink-0 rounded-full transition-colors ${
+            thought.streaming ? "animate-pulse bg-foreground/50" : "bg-muted-foreground/20"
+          }`}
+        />
+        <span
+          className={`text-xs leading-relaxed transition-colors group-hover:text-muted-foreground/60 ${
+            thought.streaming ? "text-muted-foreground/55" : "text-muted-foreground/30"
+          }`}
+        >
+          {thought.preview}
+        </span>
+        {canExpand && (
+          <motion.span
+            animate={{ rotate: isExpanded ? 90 : 0 }}
+            transition={{ duration: 0.15 }}
+            className="mt-0.5 shrink-0 text-[10px] text-muted-foreground/15"
+          >
+            ›
+          </motion.span>
+        )}
+      </button>
+
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <p className="ml-3.5 mt-1.5 text-xs leading-relaxed text-muted-foreground/25">
+              {thought.full}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 // ── BenchmarkProgress ──────────────────────────────────────────────────────────
 
@@ -31,46 +88,74 @@ export function BenchmarkProgress() {
     abort,
   } = useBenchmarkStore();
 
-  const [viewingIndex, setViewingIndex] = useState(0);
-  const [direction, setDirection] = useState(1);
-  const prevLengthRef = useRef(0);
+  const [logOpen, setLogOpen] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [durationSeconds, setDurationSeconds] = useState(0);
+
+  const startTimeRef = useRef<number | null>(null);
 
   const correctCount = completedResults.filter((r) => r.correct).length;
   const progressPct = totalQuestions > 0 ? (completedResults.length / totalQuestions) * 100 : 0;
   const lastResult = completedResults[completedResults.length - 1];
-  const isShowingResult = lastResult && lastResult.questionId === currentQuestion?.id;
+  const isShowingResult = !!(lastResult && lastResult.questionId === currentQuestion?.id);
 
   const thoughts = parseThoughts(streamingText);
+  const visibleThoughts = thoughts.filter((t) => t.type !== "answer");
 
-  // Auto-advance to the newest thought when a new paragraph appears
+  // Start elapsed timer when streaming begins
   useEffect(() => {
-    if (thoughts.length > prevLengthRef.current) {
-      setDirection(1);
-      setViewingIndex(thoughts.length - 1);
+    if (!streamingText) return;
+    if (startTimeRef.current !== null) return;
+    startTimeRef.current = Date.now();
+    const interval = setInterval(() => {
+      if (startTimeRef.current !== null) {
+        setElapsedSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000));
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!streamingText]);
+
+  // Freeze duration when result lands
+  useEffect(() => {
+    if (isShowingResult && startTimeRef.current !== null) {
+      setDurationSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000));
     }
-    prevLengthRef.current = thoughts.length;
-  }, [thoughts.length]);
+  }, [isShowingResult]);
 
-  // Reset on each new question
+  // Reset on new question
   useEffect(() => {
-    setViewingIndex(0);
-    setDirection(1);
-    prevLengthRef.current = 0;
+    startTimeRef.current = null;
+    setElapsedSeconds(0);
+    setDurationSeconds(0);
+    setLogOpen(false);
+    setExpandedId(null);
   }, [currentQuestion?.id]);
 
-  function goTo(index: number) {
-    setDirection(index > viewingIndex ? 1 : -1);
-    setViewingIndex(index);
-  }
-
-  const current = thoughts[viewingIndex] ?? null;
-
   return (
-    <div className="flex h-full flex-col gap-5">
-      {/* progress bar + counter */}
+    <div className="relative flex h-full flex-col gap-5">
+      {/* manual advance — click anywhere */}
+      <AnimatePresence>
+        {waitingForAdvance && advanceMode === "manual" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={triggerAdvance}
+            className="absolute inset-0 z-20 flex cursor-pointer items-end justify-center pb-24"
+          >
+            <span className="text-xs text-muted-foreground/30">click to continue →</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* progress bar */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>question {currentQuestionIndex + 1} / {totalQuestions}</span>
+          <span>
+            question {currentQuestionIndex + 1} / {totalQuestions}
+          </span>
           <span>{correctCount} correct</span>
         </div>
         <div className="relative h-1 w-full bg-secondary">
@@ -93,99 +178,105 @@ export function BenchmarkProgress() {
             transition={{ duration: 0.3, ease: "easeOut" }}
             className="flex flex-col gap-4 border p-6"
           >
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-xs">{currentQuestion.subject}</Badge>
-              <Badge variant="outline" className="text-xs">{currentQuestion.difficulty}</Badge>
-              <span className="ml-auto font-mono text-xs text-muted-foreground/50">
-                {currentQuestion.id}
-              </span>
-            </div>
-            <div className="text-base leading-relaxed text-foreground/70">
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/30">
+              {currentQuestion.subject} · {currentQuestion.difficulty}
+            </p>
+            <div
+              className={`leading-relaxed text-foreground/70 ${questionFontClass(currentQuestion.text, currentQuestion.choices)}`}
+            >
               <QuestionText text={currentQuestion.text} choices={currentQuestion.choices} />
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* thought viewer — fills remaining space */}
-      <div className="flex min-h-0 flex-1 flex-col gap-3">
-
-        {/* thinking indicator */}
-        <AnimatePresence>
+      {/* thinking area */}
+      <div className="flex min-h-0 flex-1 flex-col">
+        <AnimatePresence mode="wait">
+          {/* waiting */}
           {!streamingText && currentQuestion && !isShowingResult && (
-            <motion.div
+            <motion.p
+              key="waiting"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground/40"
+              className="animate-pulse text-xs text-muted-foreground/25"
             >
-              <span className="animate-pulse">thinking</span>
-              <span className="animate-pulse" style={{ animationDelay: "0.15s" }}>·</span>
-              <span className="animate-pulse" style={{ animationDelay: "0.3s" }}>·</span>
-              <span className="animate-pulse" style={{ animationDelay: "0.45s" }}>·</span>
+              thinking...
+            </motion.p>
+          )}
+
+          {/* step list — stream is live */}
+          {streamingText && !isShowingResult && (
+            <motion.div
+              key="steps"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="relative flex min-h-0 flex-1 flex-col gap-2"
+            >
+              <span className="absolute right-0 top-0 font-mono text-[10px] text-muted-foreground/20">
+                {elapsedSeconds}s
+              </span>
+              {visibleThoughts.slice(-4).map((t) => (
+                <ThoughtStep
+                  key={t.id}
+                  thought={t}
+                  isExpanded={expandedId === t.id}
+                  onToggle={() => setExpandedId((id) => (id === t.id ? null : t.id))}
+                />
+              ))}
+            </motion.div>
+          )}
+
+          {/* disclosure — result landed */}
+          {isShowingResult && (
+            <motion.div
+              key="disclosure"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              {visibleThoughts.length > 0 && (
+                <>
+                  <button
+                    onClick={() => setLogOpen((o) => !o)}
+                    className="text-xs text-muted-foreground/35 transition-colors hover:text-muted-foreground"
+                  >
+                    thought for {durationSeconds}s {logOpen ? "↑" : "↓"}
+                  </button>
+                  <AnimatePresence>
+                    {logOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="mt-3 flex max-h-64 flex-col gap-1.5 overflow-y-auto [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-[3px]">
+                          {visibleThoughts.map((t) => (
+                            <ThoughtStep
+                              key={t.id}
+                              thought={t}
+                              isExpanded={expandedId === t.id}
+                              onToggle={() => setExpandedId((id) => (id === t.id ? null : t.id))}
+                            />
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* single thought card */}
-        {thoughts.length > 0 && current && (
-          <div className="relative min-h-0 flex-1 overflow-hidden">
-            <AnimatePresence mode="wait" custom={direction}>
-              <motion.div
-                key={viewingIndex}
-                custom={direction}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.22, ease: "easeOut" }}
-                className="absolute inset-0 overflow-y-auto [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20"
-              >
-                {current.type === "answer" ? (
-                  <div className="flex items-center gap-3 py-3">
-                    <span className="h-px flex-1 bg-muted-foreground/15" />
-                    <span className="font-mono text-sm font-medium text-foreground">
-                      ANSWER: {current.full.match(/ANSWER:\s*([ABCD])/i)?.[1]?.toUpperCase() ?? ""}
-                    </span>
-                    <span className="h-px flex-1 bg-muted-foreground/15" />
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2 pr-1">
-                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground/30">
-                      thought {viewingIndex + 1}
-                    </span>
-                    <p className="text-sm leading-relaxed text-muted-foreground/70">
-                      {current.full}
-                      {current.streaming && (
-                        <span className="ml-1 animate-pulse text-muted-foreground/30">▊</span>
-                      )}
-                    </p>
-                  </div>
-                )}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        )}
-
-        {/* dot navigation */}
-        {thoughts.length > 1 && (
-          <div className="flex flex-shrink-0 items-center justify-center gap-2">
-            {thoughts.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => goTo(i)}
-                className={`h-1 rounded-full transition-all duration-200 ${
-                  i === viewingIndex
-                    ? "w-4 bg-foreground/60"
-                    : "w-1 bg-muted-foreground/20 hover:bg-muted-foreground/40"
-                }`}
-              />
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* result flash */}
+      {/* result */}
       <AnimatePresence>
         {isShowingResult && (
           <motion.div
@@ -194,62 +285,36 @@ export function BenchmarkProgress() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className={`flex flex-col gap-2 border p-5 ${
+            className={`border p-5 ${
               lastResult.correct
                 ? "border-green-600/50 bg-green-600/5"
                 : "border-red-600/50 bg-red-600/5"
             }`}
           >
-            <div className={`text-sm font-medium ${lastResult.correct ? "text-green-600" : "text-red-600"}`}>
+            <div
+              className={`text-lg font-medium ${
+                lastResult.correct ? "text-green-600" : "text-red-600"
+              }`}
+            >
               {lastResult.correct ? "correct" : "incorrect"}
             </div>
-            <div className="flex gap-4 text-sm text-muted-foreground">
-              <span>
-                extracted:{" "}
-                <span className="font-mono text-foreground">
-                  {lastResult.extractedAnswer || "(none)"}
-                </span>
-              </span>
-              <span>
-                expected:{" "}
-                <span className="font-mono text-foreground">
-                  {lastResult.expectedAnswer}
-                </span>
-              </span>
+            <div className="mt-0.5 font-mono text-sm text-muted-foreground">
+              {lastResult.extractedAnswer || "—"} · expected {lastResult.expectedAnswer}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* next question button — manual mode only */}
-      <AnimatePresence>
-        {waitingForAdvance && advanceMode === "manual" && (
-          <motion.button
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            onClick={triggerAdvance}
-            whileTap={{ scale: 0.99 }}
-            className="w-full border bg-primary py-4 text-base text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            next question →
-          </motion.button>
-        )}
-      </AnimatePresence>
-
-      {/* bottom bar: mode toggle + end */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 text-xs text-muted-foreground/40">
-          <span className="uppercase tracking-widest">advance</span>
+      {/* bottom bar — barely visible, hover to reveal */}
+      <div className="flex items-center justify-between opacity-30 transition-opacity hover:opacity-100">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
           {(["auto", "manual"] as const).map((mode, i) => (
             <span key={mode} className="flex items-center">
-              {i > 0 && <span className="mx-1.5 text-muted-foreground/15">·</span>}
+              {i > 0 && <span className="mx-1.5 text-muted-foreground/30">·</span>}
               <button
                 onClick={() => setAdvanceMode(mode)}
                 className={`transition-colors duration-150 ${
-                  advanceMode === mode
-                    ? "font-medium text-foreground"
-                    : "text-muted-foreground/30 hover:text-muted-foreground"
+                  advanceMode === mode ? "font-medium text-foreground" : "hover:text-foreground"
                 }`}
               >
                 {mode}
@@ -259,9 +324,9 @@ export function BenchmarkProgress() {
         </div>
         <button
           onClick={abort}
-          className="text-xs text-muted-foreground/30 transition-colors hover:text-destructive"
+          className="text-xs text-muted-foreground transition-colors hover:text-destructive"
         >
-          end benchmark
+          end
         </button>
       </div>
     </div>

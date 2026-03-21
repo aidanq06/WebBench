@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { AnimatePresence, motion, animate, useMotionValue, useTransform } from "framer-motion";
+import { AnimatePresence, motion, animate, useMotionValue } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 import { QUESTIONS } from "@/lib/benchmark/questions";
 import { QuestionText } from "@/components/benchmark/QuestionText";
@@ -43,71 +43,23 @@ const fadeUp = (delay: number) => ({
   transition: { duration: 0.35, delay, ease: "easeOut" as const },
 });
 
-// ── Spinning digit odometer ───────────────────────────────────────────────────
+// ── Animated count ────────────────────────────────────────────────────────────
 
-const DIGIT_H = 1.875; // rem — matches text-3xl font-size with leading-none
-// 250-element strip gives room for ~20 forward-spinning animations per digit column
-const STRIP = Array.from({ length: 250 }, (_, i) => i % 10);
-const SPIN_START = 50; // start mid-strip so there's room to spin
-
-function SpinningDigit({ digit }: { digit: number }) {
-  const slotPos = useMotionValue(SPIN_START + digit);
-  const prevRef = useRef(digit);
+function AnimatedCount({ value }: { value: number }) {
+  const mv = useMotionValue(value);
+  const [display, setDisplay] = useState(value);
 
   useEffect(() => {
-    if (digit === prevRef.current) return;
-    const current = slotPos.get();
-    const currentDigit = Math.round(current) % 10;
-    const steps = (digit - currentDigit + 10) % 10;
-    prevRef.current = digit;
-    if (steps === 0) return;
-    const controls = animate(slotPos, current + steps, {
-      duration: 0.45,
-      ease: [0.16, 1, 0.3, 1],
+    const controls = animate(mv, value, {
+      duration: 0.25,
+      ease: "easeInOut",
+      onUpdate: (v) => setDisplay(Math.round(v)),
     });
     return () => controls.stop();
-  }, [digit]);
-
-  const y = useTransform(slotPos, (v) => `${-v * DIGIT_H}rem`);
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="overflow-hidden" style={{ height: `${DIGIT_H}rem` }}>
-      <motion.div className="flex flex-col" style={{ y }}>
-        {STRIP.map((d, i) => (
-          <div
-            key={i}
-            className="select-none font-semibold leading-none"
-            style={{ height: `${DIGIT_H}rem`, fontSize: `${DIGIT_H}rem` }}
-          >
-            {d}
-          </div>
-        ))}
-      </motion.div>
-    </div>
-  );
-}
-
-function SpinningNumber({ value }: { value: number }) {
-  const digits = String(value).split("").map(Number);
-  return (
-    <div className="flex tabular-nums">
-      <AnimatePresence mode="popLayout">
-        {digits.map((d, i) => {
-          const posFromRight = digits.length - 1 - i;
-          return (
-            <motion.div
-              key={posFromRight}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-            >
-              <SpinningDigit digit={d} />
-            </motion.div>
-          );
-        })}
-      </AnimatePresence>
-    </div>
+    <span className="text-3xl font-semibold tabular-nums">{display}</span>
   );
 }
 
@@ -186,7 +138,7 @@ function Configurator({
       {/* count + browse */}
       <motion.div {...fadeUp(0.28)} className="flex flex-col gap-5">
         <div className="flex items-baseline gap-2">
-          <SpinningNumber value={matchCount} />
+          <AnimatedCount value={matchCount} />
           <motion.span
             layout
             transition={{ duration: 0.3, ease: "easeOut" }}

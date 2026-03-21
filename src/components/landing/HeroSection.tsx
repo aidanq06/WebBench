@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Github } from "lucide-react";
 import { motion, useScroll, useTransform } from "framer-motion";
 
 const WORDS = ["server.", "api key.", "setup.", "cloud.", "cost."] as const;
@@ -74,15 +73,12 @@ export function HeroSection() {
             <img src="/logos/huggingface.png" alt="HuggingFace" className="h-5 w-5 shrink-0 object-contain" />
             mmlu dataset
           </a>
-          <a
-            href="https://github.com/aidanq06/WebBench"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/questions"
             className="inline-flex items-center gap-2 border px-4 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
-            <Github className="h-3.5 w-3.5" />
-            open source
-          </a>
+            question set
+          </Link>
         </div>
 
         <h1 className="text-4xl font-medium tracking-tighter sm:text-7xl">

@@ -52,7 +52,7 @@ export async function generateCompletion(
 
 export async function generateStream(
   messages: { role: string; content: string }[],
-  options: { temperature?: number; max_tokens?: number; stopOnAnswerLine?: boolean },
+  options: { temperature?: number; max_tokens?: number; stopOnAnswerLine?: boolean; signal?: AbortSignal },
   onChunk: (fullText: string) => void
 ): Promise<string> {
   if (!engine) throw new Error("engine not loaded");
@@ -66,6 +66,8 @@ export async function generateStream(
   let fullText = "";
   let answered = false;
   for await (const chunk of stream) {
+    // Abort: stop consuming immediately (worker left mid-gen is acceptable on abort)
+    if (options.signal?.aborted) break;
     const delta = chunk.choices[0]?.delta?.content ?? "";
     if (delta && !answered) {
       fullText += delta;

@@ -1,10 +1,15 @@
+// ── Demo mode ─── set to false (and delete _demo-data.ts) when real data exists
+const DEMO_MODE = false;
+
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Navbar } from "@/components/landing/Navbar";
 import { LeaderboardClient } from "./leaderboard-client";
-import type { ModelAggregate, RunRow, SpeedRow, RecentRow } from "./leaderboard-client";
+import { AVAILABLE_MODELS } from "@/lib/webllm/models";
+import type { ModelAggregate, RunRow, RecentRow } from "./leaderboard-client";
+import { DEMO_MODELS, DEMO_RECENT } from "./_demo-data";
 
-export const revalidate = 60;
+export const revalidate = 0;
 
 interface RawReport {
   id: string;
@@ -13,11 +18,11 @@ interface RawReport {
   accuracy: number;
   correct_count: number;
   total_questions: number;
+  score: number;
   tokens_per_second: number | null;
   subject_scores: { subject: string; correct: number; total: number; accuracy: number }[] | null;
   difficulty_scores: { difficulty: string; correct: number; total: number; accuracy: number }[] | null;
   completed_at: string;
-  profiles: { username: string | null } | null;
 }
 
 function aggregateModels(reports: RawReport[]): ModelAggregate[] {
@@ -34,7 +39,7 @@ function aggregateModels(reports: RawReport[]): ModelAggregate[] {
   for (const [modelId, { reports: rs }] of map) {
     const runCount = rs.length;
     const avgAccuracy = rs.reduce((s, r) => s + r.accuracy, 0) / runCount;
-    const bestAccuracy = Math.max(...rs.map((r) => r.accuracy));
+    const avgScore = Math.round(rs.reduce((s, r) => s + (r.score ?? 0), 0) / runCount);
 
     // average subject scores across all runs
     const subjectSums: Record<string, { sum: number; count: number }> = {};
@@ -67,52 +72,78 @@ function aggregateModels(reports: RawReport[]): ModelAggregate[] {
       hard: diffSums["hard"] ? diffSums["hard"].sum / diffSums["hard"].count : 0,
     };
 
+    const model = AVAILABLE_MODELS.find((m) => m.id === modelId);
+    const parameterCount = model?.parameterCount ?? "";
+
     const recentRuns: RunRow[] = rs
       .sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime())
       .map((r) => ({
         id: r.id,
-        accuracy: r.accuracy,
+        score: r.score ?? 0,
         correct_count: r.correct_count,
         total_questions: r.total_questions,
         tokens_per_second: r.tokens_per_second,
         completed_at: r.completed_at,
-        profiles: r.profiles,
       }));
 
     result.push({
       modelId,
       displayName: rs[0].model_display_name,
+      parameterCount,
       runCount,
       avgAccuracy,
+      avgScore,
       subjectAvgs,
       difficultyAvgs,
-      bestAccuracy,
       recentRuns,
     });
   }
 
-  return result.sort((a, b) => b.avgAccuracy - a.avgAccuracy);
+  return result.sort((a, b) => b.avgScore - a.avgScore);
 }
 
 export default async function LeaderboardPage() {
+  if (DEMO_MODE) {
+    // Inject param counts from AVAILABLE_MODELS
+    const demoModels = DEMO_MODELS.map((m) => ({
+      ...m,
+      parameterCount: AVAILABLE_MODELS.find((am) => am.id === m.modelId)?.parameterCount ?? "",
+    }));
+    return (
+      <div className="flex min-h-screen flex-col">
+        <Navbar />
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-6 py-12">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-2xl font-medium tracking-tighter">leaderboard</h1>
+            <p className="text-sm text-muted-foreground">
+              community model rankings · every run contributes
+            </p>
+          </div>
+          <LeaderboardClient models={demoModels} initialRecent={DEMO_RECENT} />
+          <div className="border-t pt-8 text-center">
+            <p className="mb-3 text-sm text-muted-foreground">
+              run the benchmark — no api key, no install
+            </p>
+            <Link href="/benchmark" className="inline-flex border px-5 py-2 text-sm transition-colors hover:bg-accent/50">
+              run benchmark →
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const supabase = await createClient();
 
-  const [{ data: allReportsData }, { data: speedData }, { data: recentData }] = await Promise.all([
+  const [{ data: allReportsData }, { data: recentData }] = await Promise.all([
     supabase
       .from("reports")
-      .select("id, model_id, model_display_name, accuracy, correct_count, total_questions, tokens_per_second, subject_scores, difficulty_scores, completed_at, profiles(username)")
+      .select("id, model_id, model_display_name, accuracy, correct_count, total_questions, score, tokens_per_second, subject_scores, difficulty_scores, completed_at")
       .order("completed_at", { ascending: false }),
 
     supabase
       .from("reports")
-      .select("id, model_display_name, tokens_per_second, gpu_device, device_class, browser, os, completed_at, profiles(username)")
-      .not("tokens_per_second", "is", null)
-      .order("tokens_per_second", { ascending: false })
-      .limit(50),
-
-    supabase
-      .from("reports")
-      .select("id, model_display_name, tokens_per_second, efficiency_score, accuracy, device_class, completed_at, profiles(username)")
+      .select("id, model_display_name, score, tokens_per_second, device_class, completed_at")
       .order("created_at", { ascending: false })
       .limit(20),
   ]);
@@ -122,17 +153,16 @@ export default async function LeaderboardPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-12">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-6 py-12">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-medium tracking-tighter">leaderboard</h1>
           <p className="text-sm text-muted-foreground">
-            community model rankings · hardware speed · live feed
+            community model rankings · every run contributes
           </p>
         </div>
 
         <LeaderboardClient
           models={models}
-          initialSpeed={(speedData ?? []) as unknown as SpeedRow[]}
           initialRecent={(recentData ?? []) as unknown as RecentRow[]}
         />
 

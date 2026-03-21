@@ -8,6 +8,7 @@ import { loadModel } from "@/lib/webllm/engine-client";
 import { runQABenchmark } from "@/lib/benchmark/qa-runner";
 import { ModelSelector } from "@/components/benchmark/ModelSelector";
 import { BenchmarkProgress } from "@/components/benchmark/BenchmarkProgress";
+import { CompatibilityGate } from "@/components/benchmark/CompatibilityGate";
 import { Navbar } from "@/components/landing/Navbar";
 import { AVAILABLE_MODELS, modelLogo } from "@/lib/webllm/models";
 import { detectHardware } from "@/lib/hardware/detect";
@@ -68,7 +69,7 @@ function OptionRow({
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 
-export default function BenchmarkPage() {
+function BenchmarkPageInner() {
   const router = useRouter();
   const {
     phase,
@@ -109,7 +110,7 @@ export default function BenchmarkPage() {
 
   const handleRun = useCallback(async () => {
     const store = useBenchmarkStore.getState();
-    const runId = `run-${Date.now()}`;
+    const runId = crypto.randomUUID();
     try {
       store.startLoading();
       await loadModel(selectedModelId, (report) => {
@@ -129,7 +130,7 @@ export default function BenchmarkPage() {
       <div className="flex h-screen flex-col overflow-hidden">
         <Navbar />
         <div className="flex flex-1 flex-col items-center overflow-hidden px-6 py-6">
-          <div className="flex h-full w-full max-w-2xl flex-col">
+          <div className="relative flex h-full w-full max-w-2xl flex-col">
             <BenchmarkProgress />
           </div>
         </div>
@@ -170,7 +171,7 @@ export default function BenchmarkPage() {
                       </p>
                     )}
                   </div>
-                  <ModelSelector onSelect={handleModelSelect} />
+                  <ModelSelector onSelect={handleModelSelect} hardware={hardware} />
                 </motion.div>
 
               ) : (
@@ -304,5 +305,13 @@ export default function BenchmarkPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function BenchmarkPage() {
+  return (
+    <CompatibilityGate>
+      <BenchmarkPageInner />
+    </CompatibilityGate>
   );
 }

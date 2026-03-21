@@ -2,156 +2,128 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { Share2, Check } from "lucide-react";
+import { motion, AnimatePresence, animate, useMotionValue } from "framer-motion";
 import { BenchmarkReport } from "@/types/report";
-import { QuestionResult } from "@/types/task";
 import { QUESTIONS } from "@/lib/benchmark/questions";
-import { ScoreGauge } from "@/components/report/ScoreGauge";
 import { QuestionText } from "@/components/benchmark/QuestionText";
-import { Badge } from "@/components/ui/badge";
 import { Navbar } from "@/components/landing/Navbar";
 import { AVAILABLE_MODELS, modelLogo } from "@/lib/webllm/models";
+import { SCORING } from "@/lib/benchmark/scoring-config";
+import type { QuestionResult } from "@/types/task";
 
-// ── Animated stat bar ─────────────────────────────────────────────────────────
-function StatBar({
-  label,
-  correct,
-  total,
-  delay = 0,
+// ── Animated pts counter ───────────────────────────────────────────────────────
+function AnimatedPts({ value, delay = 0 }: { value: number; delay?: number }) {
+  const mv = useMotionValue(0);
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    const controls = animate(mv, value, {
+      duration: 0.6,
+      delay,
+      ease: "easeOut",
+      onUpdate: (v) => setDisplay(Math.round(v)),
+    });
+    return () => controls.stop();
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return <>{display}</>;
+}
+
+// ── Score breakdown ────────────────────────────────────────────────────────────
+export function ScoreBreakdown({
+  questionResults,
+  totalQuestions,
+  activeDifficulty,
+  onDifficultyClick,
 }: {
-  label: string;
-  correct: number;
-  total: number;
-  delay?: number;
+  questionResults: QuestionResult[];
+  totalQuestions: number;
+  activeDifficulty: string | null;
+  onDifficultyClick: (d: string | null) => void;
 }) {
-  const pct = total > 0 ? (correct / total) * 100 : 0;
+  const { weights, scale } = SCORING;
+  const possible = totalQuestions * weights.hard;
+
+  const tiers = (["easy", "medium", "hard"] as const)
+    .map((diff, i) => {
+      const results = questionResults.filter((r) => r.difficulty === diff);
+      const correct = results.filter((r) => r.correct).length;
+      const total = results.length;
+      const pts = total > 0 ? Math.round((correct * weights[diff]) / possible * scale) : 0;
+      const maxPts = Math.round((total * weights[diff]) / possible * scale);
+      const fillPct = maxPts > 0 ? (pts / maxPts) * 100 : 0;
+      return { diff, correct, total, pts, maxPts, fillPct, delay: i * 0.1 };
+    })
+    .filter((t) => t.total > 0);
+
   return (
-    <div className="flex items-center gap-3">
-      <span className="w-20 shrink-0 text-xs text-muted-foreground">{label}</span>
-      <div className="relative h-0.5 flex-1 bg-secondary">
-        <motion.div
-          className="absolute inset-y-0 left-0 bg-foreground"
-          initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.7, delay, ease: "easeOut" }}
-        />
-      </div>
-      <span className="w-12 shrink-0 text-right text-xs text-muted-foreground">
-        {correct}/{total}
-      </span>
+    <div className="flex flex-col gap-1">
+      {tiers.map((tier) => {
+        const isActive = activeDifficulty === tier.diff;
+        const isInactive = activeDifficulty !== null && !isActive;
+        return (
+          <motion.button
+            key={tier.diff}
+            onClick={() => onDifficultyClick(isActive ? null : tier.diff)}
+            animate={{ opacity: isInactive ? 0.25 : 1 }}
+            transition={{ duration: 0.18 }}
+            className="-mx-3 flex cursor-pointer items-center gap-4 rounded-sm px-3 py-3 text-left transition-colors hover:bg-accent/8"
+          >
+            {/* difficulty label */}
+            <span className="w-16 shrink-0 text-xs text-muted-foreground">{tier.diff}</span>
+
+            {/* accuracy bar for this tier */}
+            <div className="relative h-px flex-1 bg-secondary">
+              <motion.div
+                className="absolute inset-y-0 left-0 bg-foreground"
+                initial={{ width: 0 }}
+                animate={{ width: `${tier.fillPct}%` }}
+                transition={{ duration: 0.65, delay: tier.delay, ease: "easeOut" }}
+              />
+            </div>
+
+            {/* correct / total */}
+            <span className="w-10 shrink-0 text-right font-mono text-[10px] tabular-nums text-muted-foreground/35">
+              {tier.correct}/{tier.total}
+            </span>
+
+            {/* pts contribution */}
+            <span className="w-24 shrink-0 text-right text-base font-semibold tabular-nums">
+              +<AnimatedPts value={tier.pts} delay={tier.delay} />
+              <span className="ml-1 text-[10px] font-normal text-muted-foreground/40">pts</span>
+            </span>
+          </motion.button>
+        );
+      })}
     </div>
   );
 }
 
-// ── Difficulty block ──────────────────────────────────────────────────────────
-function DifficultyBlock({
-  label,
-  correct,
-  total,
-  delay = 0,
-}: {
-  label: string;
-  correct: number;
-  total: number;
-  delay?: number;
-}) {
-  const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay, ease: "easeOut" }}
-      className="flex flex-1 flex-col items-center gap-1 border p-5"
-    >
-      <span className="text-3xl font-medium tracking-tight">{pct}%</span>
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-[10px] text-muted-foreground/50">{correct}/{total}</span>
-    </motion.div>
-  );
-}
-
-// ── Expandable question row ───────────────────────────────────────────────────
-function QuestionRow({ result }: { result: QuestionResult }) {
+// ── Reasoning log ─────────────────────────────────────────────────────────────
+function ReasoningLog({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
-  const question = QUESTIONS.find((q) => q.id === result.questionId);
-
+  const clean = text.replace(/<\/?think>/gi, "").trim();
+  if (!clean) return null;
   return (
-    <div className={`border-b last:border-b-0 ${open ? "border-l-2 border-l-muted-foreground/20" : ""}`}>
+    <div className="flex flex-col gap-2">
       <button
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/20"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen((o) => !o)}
+        className="text-left text-xs text-muted-foreground/35 transition-colors hover:text-muted-foreground"
       >
-        <motion.div
-          className={`h-1.5 w-1.5 shrink-0 ${result.correct ? "bg-green-600" : "bg-red-600"}`}
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", stiffness: 300 }}
-        />
-        <span className="w-8 shrink-0 font-mono text-xs text-muted-foreground/50">
-          {result.questionId}
-        </span>
-        <Badge variant="secondary" className="shrink-0 text-[10px]">
-          {result.subject}
-        </Badge>
-        <Badge variant="outline" className="shrink-0 text-[10px]">
-          {result.difficulty}
-        </Badge>
-        <span className={`flex-1 text-xs ${result.correct ? "text-foreground/70" : "text-muted-foreground"}`}>
-          {result.correct ? "correct" : "incorrect"}
-        </span>
-        <span className="shrink-0 text-xs text-muted-foreground/40">
-          {(result.timeTakenMs / 1000).toFixed(1)}s
-        </span>
-        <motion.span
-          animate={{ rotate: open ? 90 : 0 }}
-          transition={{ duration: 0.2 }}
-          className="shrink-0 text-[10px] text-muted-foreground/40"
-        >
-          ›
-        </motion.span>
+        reasoning {open ? "↑" : "↓"}
       </button>
-
-      <AnimatePresence initial={false}>
+      <AnimatePresence>
         {open && (
           <motion.div
-            key="detail"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
+            transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="flex flex-col gap-4 px-6 pb-5 pt-2">
-              {question && (
-                <div className="text-sm leading-relaxed text-foreground/70">
-                  <QuestionText
-                    text={question.text}
-                    choices={question.choices}
-                    highlightCorrect={result.expectedAnswer as "A" | "B" | "C" | "D"}
-                    highlightSelected={result.extractedAnswer as "A" | "B" | "C" | "D" | undefined}
-                  />
-                </div>
-              )}
-              <div className="flex gap-6 text-xs text-muted-foreground">
-                <span>
-                  answered:{" "}
-                  <span className={`font-mono ${result.correct ? "text-green-600" : "text-red-600"}`}>
-                    {result.extractedAnswer || "(none)"}
-                  </span>
-                </span>
-                <span>
-                  correct:{" "}
-                  <span className="font-mono text-foreground/60">{result.expectedAnswer}</span>
-                </span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] text-muted-foreground">model response</span>
-                <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap bg-secondary px-3 py-3 text-xs text-muted-foreground/80">
-                  {result.modelResponse || "(no response)"}
-                </pre>
-              </div>
-            </div>
+            <p className="max-h-64 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground/50 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-[3px]">
+              {clean}
+            </p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -173,19 +145,9 @@ function ShareButton({ runId }: { runId: string }) {
   return (
     <button
       onClick={handleShare}
-      className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+      className="text-xs text-muted-foreground transition-colors hover:text-foreground"
     >
-      {copied ? (
-        <>
-          <Check className="h-3 w-3 text-green-600" />
-          <span className="text-green-600">copied</span>
-        </>
-      ) : (
-        <>
-          <Share2 className="h-3 w-3" />
-          share
-        </>
-      )}
+      {copied ? <span className="text-green-600">copied ✓</span> : "share"}
     </button>
   );
 }
@@ -206,15 +168,15 @@ export function ReportClient({
   runId,
   dbReport,
   savedToDb,
-  speedPercentile,
 }: {
   runId: string;
   dbReport: BenchmarkReport | null;
   savedToDb: boolean;
-  speedPercentile: number | null;
 }) {
   const router = useRouter();
   const [report, setReport] = useState<BenchmarkReport | null>(dbReport);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [activeDifficulty, setActiveDifficulty] = useState<string | null>(null);
 
   // Fall back to sessionStorage if not in DB (unsigned user, same session)
   useEffect(() => {
@@ -242,20 +204,26 @@ export function ReportClient({
   }
 
   const model = AVAILABLE_MODELS.find((m) => m.id === report.modelId);
-  const accuracy = Math.round(report.overallAccuracy * 100);
   const hw = report.hardware;
-  const deviceLabel = hw?.gpuDevice && hw.gpuDevice !== "unknown"
-    ? hw.gpuDevice
-    : hw?.deviceClass && hw.deviceClass !== "unknown"
-      ? hw.deviceClass
-      : null;
+  const deviceLabel =
+    hw?.gpuDevice && hw.gpuDevice !== "unknown"
+      ? hw.gpuDevice
+      : hw?.deviceClass && hw.deviceClass !== "unknown"
+        ? hw.deviceClass
+        : null;
+
+  const selectedResult =
+    report.questionResults.find((r) => r.questionId === selectedId) ?? null;
+  const selectedQuestion = selectedResult
+    ? QUESTIONS.find((q) => q.id === selectedResult.questionId) ?? null
+    : null;
 
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
       <div className="flex flex-1 flex-col items-center px-6 py-12">
         <motion.div
-          className="flex w-full max-w-2xl flex-col gap-8"
+          className="flex w-full max-w-2xl flex-col gap-10"
           variants={container}
           initial="hidden"
           animate="show"
@@ -300,114 +268,123 @@ export function ReportClient({
             )}
           </motion.div>
 
-          {/* sign-in prompt for unsigned users */}
-          {!savedToDb && (
-            <motion.div
-              variants={fadeUp}
-              className="flex items-center justify-between border border-dashed px-4 py-3"
-            >
-              <p className="text-xs text-muted-foreground">
-                sign in to save and share this report permanently
+{/* score hero */}
+          <motion.div variants={fadeUp} className="flex flex-col gap-6">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-baseline gap-2">
+                <span className="text-6xl font-medium tracking-tight">{report.score}</span>
+                <span className="text-xl text-muted-foreground/30">/ 1000</span>
+              </div>
+              <p className="text-xs text-muted-foreground/40">
+                click a row to highlight those questions below
               </p>
-              <a
-                href={`/benchmark`}
-                className="text-xs text-foreground underline-offset-2 hover:underline"
-              >
-                sign in
-              </a>
-            </motion.div>
-          )}
+            </div>
 
-          {/* score + stats row */}
-          <motion.div variants={fadeUp} className="grid grid-cols-2 gap-px border sm:grid-cols-4">
-            <div className="flex flex-col items-center gap-1 bg-background p-6">
-              <ScoreGauge score={accuracy} />
-              <span className="text-xs text-muted-foreground">accuracy</span>
-            </div>
-            <div className="flex flex-col items-center justify-center gap-1 bg-background p-6">
-              <span className="text-3xl font-medium tracking-tight">
-                {report.correctCount}/{report.totalQuestions}
-              </span>
-              <span className="text-xs text-muted-foreground">correct</span>
-            </div>
-            <div className="flex flex-col items-center justify-center gap-1 bg-background p-6">
-              {report.tokensPerSecond > 0 ? (
-                <>
-                  <span className="text-3xl font-medium tracking-tight">
-                    {report.tokensPerSecond.toFixed(1)}
-                  </span>
-                  <span className="text-xs text-muted-foreground">tok/s</span>
-                  {speedPercentile !== null && (
-                    <span className="text-[10px] text-muted-foreground/50">
-                      faster than {speedPercentile}%
-                    </span>
-                  )}
-                </>
-              ) : (
-                <>
-                  <span className="text-3xl font-medium tracking-tight">—</span>
-                  <span className="text-xs text-muted-foreground">tok/s</span>
-                </>
+            <ScoreBreakdown
+              questionResults={report.questionResults}
+              totalQuestions={report.totalQuestions}
+              activeDifficulty={activeDifficulty}
+              onDifficultyClick={setActiveDifficulty}
+            />
+          </motion.div>
+
+          {/* question dot grid */}
+          <motion.div variants={fadeUp} className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="text-xs text-muted-foreground">questions</div>
+              {activeDifficulty && (
+                <motion.button
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  onClick={() => setActiveDifficulty(null)}
+                  className="text-[10px] text-muted-foreground/40 transition-colors hover:text-muted-foreground"
+                >
+                  show all
+                </motion.button>
               )}
             </div>
-            <div className="flex flex-col items-center justify-center gap-1 bg-background p-6">
-              {report.efficiencyScore > 0 ? (
-                <>
-                  <span className="text-3xl font-medium tracking-tight">
-                    {report.efficiencyScore.toFixed(1)}
-                  </span>
-                  <span className="text-xs text-muted-foreground">efficiency</span>
-                  <span className="text-[10px] text-muted-foreground/50">acc% ÷ √params</span>
-                </>
-              ) : (
-                <>
-                  <span className="text-3xl font-medium tracking-tight">—</span>
-                  <span className="text-xs text-muted-foreground">efficiency</span>
-                </>
+
+            <div className="flex flex-wrap gap-1.5">
+              {report.questionResults.map((r, i) => {
+                const isDimmed = activeDifficulty !== null && r.difficulty !== activeDifficulty;
+                const isSelected = selectedId === r.questionId;
+                return (
+                  <motion.button
+                    key={r.questionId}
+                    title={`${r.subject} · ${r.difficulty}`}
+                    animate={{ opacity: isDimmed ? 0.1 : isSelected ? 1 : 0.4 }}
+                    whileHover={{ opacity: isDimmed ? 0.1 : 1 }}
+                    transition={{ duration: 0.15 }}
+                    onClick={() => {
+                      if (!isDimmed) {
+                        setSelectedId((id) => (id === r.questionId ? null : r.questionId));
+                      }
+                    }}
+                    className={`flex h-7 w-7 items-center justify-center border font-mono text-[10px] transition-transform duration-150 ${
+                      r.correct
+                        ? "border-green-500/40 text-green-500"
+                        : "border-red-500/40 text-red-500"
+                    } ${isSelected ? "scale-110 bg-foreground/5" : ""}`}
+                  >
+                    {String(i + 1).padStart(2, "0")}
+                  </motion.button>
+                );
+              })}
+            </div>
+
+            {/* expandable detail panel */}
+            <AnimatePresence>
+              {selectedResult && selectedQuestion && (
+                <motion.div
+                  key={selectedResult.questionId}
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.25, ease: "easeInOut" }}
+                  className="overflow-hidden"
+                >
+                  <div className="flex flex-col gap-5 border-t pt-5">
+                    <div className="flex items-center text-[10px] uppercase tracking-widest text-muted-foreground/40">
+                      <span>
+                        {selectedResult.subject} · {selectedResult.difficulty}
+                      </span>
+                      <span className="ml-auto">
+                        {selectedResult.correct ? (
+                          <span className="text-green-600">correct</span>
+                        ) : (
+                          <span className="text-red-600">
+                            answered {selectedResult.extractedAnswer || "—"} · expected{" "}
+                            {selectedResult.expectedAnswer}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="text-sm leading-relaxed text-foreground/70">
+                      <QuestionText
+                        text={selectedQuestion.text}
+                        choices={selectedQuestion.choices}
+                        highlightCorrect={
+                          selectedResult.expectedAnswer as "A" | "B" | "C" | "D"
+                        }
+                        highlightSelected={
+                          selectedResult.extractedAnswer as
+                            | "A"
+                            | "B"
+                            | "C"
+                            | "D"
+                            | undefined
+                        }
+                      />
+                    </div>
+
+                    {selectedResult.modelResponse && (
+                      <ReasoningLog text={selectedResult.modelResponse} />
+                    )}
+                  </div>
+                </motion.div>
               )}
-            </div>
-          </motion.div>
-
-          {/* difficulty curve */}
-          <motion.div variants={fadeUp} className="flex flex-col gap-3">
-            <div className="text-xs text-muted-foreground">difficulty curve</div>
-            <div className="flex gap-2">
-              {report.difficultyScores.map((s, i) => (
-                <DifficultyBlock
-                  key={s.difficulty}
-                  label={s.difficulty}
-                  correct={s.correct}
-                  total={s.total}
-                  delay={i * 0.08}
-                />
-              ))}
-            </div>
-          </motion.div>
-
-          {/* subject breakdown */}
-          <motion.div variants={fadeUp} className="flex flex-col gap-3">
-            <div className="text-xs text-muted-foreground">by subject</div>
-            <div className="flex flex-col gap-2.5">
-              {report.subjectScores.map((s, i) => (
-                <StatBar
-                  key={s.subject}
-                  label={s.subject}
-                  correct={s.correct}
-                  total={s.total}
-                  delay={i * 0.08}
-                />
-              ))}
-            </div>
-          </motion.div>
-
-          {/* question results */}
-          <motion.div variants={fadeUp} className="flex flex-col gap-2">
-            <div className="text-xs text-muted-foreground">questions</div>
-            <div className="border">
-              {report.questionResults.map((result) => (
-                <QuestionRow key={result.questionId} result={result} />
-              ))}
-            </div>
+            </AnimatePresence>
           </motion.div>
 
           {/* CTA for visitors who clicked a shared link */}

@@ -60,17 +60,22 @@ export async function detectHardware(): Promise<HardwareInfo> {
 
   let gpuVendor = "unknown";
   let gpuDevice = "unknown";
+  let maxBufferBytes = 0;
 
   if (typeof navigator !== "undefined" && "gpu" in navigator) {
     try {
       const gpu = (navigator as { gpu?: { requestAdapter?: () => Promise<unknown> } }).gpu;
-      const adapter = await gpu?.requestAdapter?.() as { info?: { vendor?: string; device?: string; description?: string } } | null;
+      const adapter = await gpu?.requestAdapter?.() as {
+        info?: { vendor?: string; device?: string; description?: string };
+        limits?: { maxBufferSize?: number };
+      } | null;
       if (adapter) {
         const info = adapter.info;
         if (info) {
           gpuVendor = info.vendor ?? "unknown";
           gpuDevice = info.description || info.device || "unknown";
         }
+        maxBufferBytes = adapter.limits?.maxBufferSize ?? 0;
       }
     } catch {
       // WebGPU not available or blocked
@@ -88,5 +93,6 @@ export async function detectHardware(): Promise<HardwareInfo> {
     browser,
     os,
     webgpuBackend,
+    maxBufferBytes,
   };
 }

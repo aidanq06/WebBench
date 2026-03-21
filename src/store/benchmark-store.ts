@@ -23,6 +23,7 @@ interface BenchmarkStore {
   error: string | null;
   waitingForAdvance: boolean;
   advanceResolver: (() => void) | null;
+  abortStreamCallback: (() => void) | null;
   aborted: boolean;
 
   setModel: (id: string) => void;
@@ -42,6 +43,7 @@ interface BenchmarkStore {
   reset: () => void;
 
   setWaitingForAdvance: (waiting: boolean, resolver: (() => void) | null) => void;
+  setAbortStreamCallback: (fn: (() => void) | null) => void;
   triggerAdvance: () => void;
   abort: () => void;
 }
@@ -64,20 +66,32 @@ export const useBenchmarkStore = create<BenchmarkStore>((set, get) => ({
   error: null,
   waitingForAdvance: false,
   advanceResolver: null,
+  abortStreamCallback: null,
   aborted: false,
 
   setModel: (id) => set({ selectedModelId: id }),
   setQuestionCount: (n) => set({ questionCount: n }),
   setSubjectFilter: (s) => set({ subjectFilter: s }),
   setDifficultyFilter: (d) => set({ difficultyFilter: d }),
-  setAdvanceMode: (m) => set({ advanceMode: m }),
+  setAdvanceMode: (m) => {
+    if (m === "auto") {
+      const { advanceResolver } = get();
+      if (advanceResolver) {
+        const resolve = advanceResolver;
+        set({ advanceMode: m, waitingForAdvance: false, advanceResolver: null });
+        setTimeout(resolve, 1000);
+        return;
+      }
+    }
+    set({ advanceMode: m });
+  },
 
   startLoading: () =>
     set({ phase: "loading-model", loadingProgress: 0, loadingText: "initializing..." }),
   setLoadingProgress: (p, text) =>
     set({ loadingProgress: p, loadingText: text }),
   start: (total) =>
-    set({ phase: "running", totalQuestions: total, currentQuestionIndex: 0, completedResults: [], streamingText: "", currentQuestion: null, aborted: false, waitingForAdvance: false, advanceResolver: null }),
+    set({ phase: "running", totalQuestions: total, currentQuestionIndex: 0, completedResults: [], streamingText: "", currentQuestion: null, aborted: false, waitingForAdvance: false, advanceResolver: null, abortStreamCallback: null }),
   startQuestion: (index, question) =>
     set({ currentQuestionIndex: index, currentQuestion: question, streamingText: "" }),
   setStreamingText: (text) =>
@@ -91,15 +105,17 @@ export const useBenchmarkStore = create<BenchmarkStore>((set, get) => ({
 
   setWaitingForAdvance: (waiting, resolver) =>
     set({ waitingForAdvance: waiting, advanceResolver: resolver }),
+  setAbortStreamCallback: (fn) => set({ abortStreamCallback: fn }),
   triggerAdvance: () => {
     const { advanceResolver } = get();
     if (advanceResolver) advanceResolver();
     set({ waitingForAdvance: false, advanceResolver: null });
   },
   abort: () => {
-    const { advanceResolver } = get();
+    const { advanceResolver, abortStreamCallback } = get();
+    if (abortStreamCallback) abortStreamCallback();
     if (advanceResolver) advanceResolver();
-    set({ aborted: true, waitingForAdvance: false, advanceResolver: null });
+    set({ aborted: true, waitingForAdvance: false, advanceResolver: null, abortStreamCallback: null });
   },
 
   reset: () =>
@@ -119,6 +135,7 @@ export const useBenchmarkStore = create<BenchmarkStore>((set, get) => ({
       error: null,
       waitingForAdvance: false,
       advanceResolver: null,
+      abortStreamCallback: null,
       aborted: false,
     }),
 }));

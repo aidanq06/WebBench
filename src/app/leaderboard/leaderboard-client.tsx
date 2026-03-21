@@ -11,46 +11,32 @@ import { modelLogo } from "@/lib/webllm/models";
 
 export interface RunRow {
   id: string;
-  accuracy: number;
+  score: number;
   correct_count: number;
   total_questions: number;
   tokens_per_second: number | null;
   completed_at: string;
-  profiles: { username: string | null } | null;
 }
 
 export interface ModelAggregate {
   modelId: string;
   displayName: string;
+  parameterCount: string;
   runCount: number;
   avgAccuracy: number;
+  avgScore: number;
   subjectAvgs: { cs: number; engineering: number; math: number; science: number };
   difficultyAvgs: { easy: number; medium: number; hard: number };
-  bestAccuracy: number;
   recentRuns: RunRow[];
-}
-
-export interface SpeedRow {
-  id: string;
-  model_display_name: string;
-  tokens_per_second: number;
-  gpu_device: string | null;
-  device_class: string | null;
-  browser: string | null;
-  os: string | null;
-  completed_at: string;
-  profiles: { username: string | null } | null;
 }
 
 export interface RecentRow {
   id: string;
   model_display_name: string;
+  score: number | null;
   tokens_per_second: number | null;
-  efficiency_score: number | null;
-  accuracy: number;
   device_class: string | null;
   completed_at: string;
-  profiles: { username: string | null } | null;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -71,15 +57,6 @@ const SUBJECT_BAR: Record<typeof SUBJECTS[number], string> = {
   science:     "bg-purple-500",
 };
 
-const DEVICE_CLASS_LABELS: Record<string, string> = {
-  "apple-silicon": "apple silicon",
-  nvidia: "nvidia",
-  amd: "amd",
-  intel: "intel",
-  mobile: "mobile",
-  unknown: "unknown",
-};
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatTimeAgo(iso: string): string {
@@ -92,19 +69,6 @@ function formatTimeAgo(iso: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-function AccuracyBar({ pct }: { pct: number }) {
-  const color = pct >= 60 ? "bg-green-500" : pct >= 40 ? "bg-yellow-500" : "bg-red-500";
-  return (
-    <div className="relative h-[3px] w-20 bg-muted">
-      <motion.div
-        className={`absolute inset-y-0 left-0 ${color}`}
-        initial={{ width: 0 }}
-        animate={{ width: `${pct}%` }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-      />
-    </div>
-  );
-}
 
 // ── Model detail accordion ────────────────────────────────────────────────────
 
@@ -120,7 +84,6 @@ function ModelDetail({ model, visible }: { model: ModelAggregate; visible: boole
           transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
           className="overflow-hidden border-t border-border/20"
         >
-          {/* inner content fades + rises in after the shell opens */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -154,7 +117,7 @@ function ModelDetail({ model, visible }: { model: ModelAggregate; visible: boole
               </div>
             </div>
 
-            {/* difficulty + meta */}
+            {/* difficulty breakdown */}
             <div className="flex flex-col gap-4 sm:min-w-[200px]">
               <p className="text-[10px] uppercase tracking-widest text-muted-foreground/30">difficulty</p>
               <div className="flex gap-8">
@@ -175,39 +138,32 @@ function ModelDetail({ model, visible }: { model: ModelAggregate; visible: boole
               </div>
             </div>
 
-            {/* runs list — full width below */}
+            {/* run history */}
             <div className="col-span-full flex flex-col gap-3 border-t border-border/20 pt-6">
               <p className="text-[10px] uppercase tracking-widest text-muted-foreground/30">run history</p>
               <div className="divide-y divide-border/15">
-                {model.recentRuns.map((run) => {
-                  const pct = Math.round(run.accuracy * 100);
-                  return (
-                    <Link
-                      key={run.id}
-                      href={`/report/${run.id}`}
-                      className="flex items-center gap-5 py-2.5 transition-colors hover:bg-accent/10"
-                    >
-                      <span className="flex-1 text-xs text-muted-foreground/50">
-                        {formatTimeAgo(run.completed_at)}
-                      </span>
-                      <span className="shrink-0 text-xs text-muted-foreground/35">
-                        {run.profiles?.username ?? "—"}
-                      </span>
-                      <span className="shrink-0 font-mono text-xs text-muted-foreground/40 tabular-nums">
-                        {run.correct_count}/{run.total_questions}
-                      </span>
-                      {run.tokens_per_second != null && (
-                        <span className="shrink-0 text-xs text-muted-foreground/30 tabular-nums">
-                          {run.tokens_per_second.toFixed(1)} tok/s
-                        </span>
-                      )}
-                      <span className="shrink-0 w-10 text-right text-sm font-semibold tabular-nums">
-                        {pct}%
-                      </span>
-                      <span className="shrink-0 text-xs text-muted-foreground/25">→</span>
-                    </Link>
-                  );
-                })}
+                {model.recentRuns.map((run) => (
+                  <Link
+                    key={run.id}
+                    href={`/report/${run.id}`}
+                    className="flex items-center gap-5 py-2.5 transition-colors hover:bg-accent/10"
+                  >
+                    <span className="flex-1 text-xs text-muted-foreground/50">
+                      {formatTimeAgo(run.completed_at)}
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground/35">
+                      {"anonymous"}
+                    </span>
+                    <span className="shrink-0 font-mono text-xs text-muted-foreground/40 tabular-nums">
+                      {run.correct_count}/{run.total_questions}q
+                    </span>
+                    <span className="shrink-0 w-14 text-right text-sm font-semibold tabular-nums">
+                      {run.score}
+                      <span className="ml-0.5 text-[10px] font-normal text-muted-foreground/30">pts</span>
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground/25">→</span>
+                  </Link>
+                ))}
               </div>
             </div>
           </motion.div>
@@ -236,24 +192,16 @@ function ModelsTab({ models }: { models: ModelAggregate[] }) {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-xs text-muted-foreground/40">
-        community averages · click a row to expand
+        community averages · every run contributes · click to expand
       </p>
 
       {/* column headers */}
-      <div className="flex items-center gap-3 border-b border-border/30 px-2 pb-2.5">
+      <div className="flex items-center gap-4 border-b border-border/30 px-2 pb-2.5">
         <span className="w-7 shrink-0" />
         <span className="w-4 shrink-0" />
         <span className="flex-1 text-[10px] uppercase tracking-widest text-muted-foreground/30">model</span>
-        {SUBJECTS.map((s) => (
-          <span
-            key={s}
-            className={`hidden w-14 shrink-0 text-right text-[10px] uppercase tracking-widest sm:block ${SUBJECT_TEXT[s]} opacity-40`}
-          >
-            {s === "engineering" ? "eng" : s}
-          </span>
-        ))}
-        <span className="hidden w-20 shrink-0 sm:block" />
-        <span className="w-12 shrink-0 text-right text-[10px] uppercase tracking-widest text-muted-foreground/30">avg</span>
+        <span className="w-32 shrink-0 sm:w-48" />
+        <span className="w-20 shrink-0 text-right text-[10px] uppercase tracking-widest text-muted-foreground/30">avg score</span>
         <span className="hidden w-8 shrink-0 text-right text-[10px] uppercase tracking-widest text-muted-foreground/30 sm:block">n</span>
         <span className="w-4 shrink-0" />
       </div>
@@ -262,11 +210,10 @@ function ModelsTab({ models }: { models: ModelAggregate[] }) {
       <div className="divide-y divide-border/15">
         {models.map((model, i) => {
           const isOpen = openModel === model.modelId;
-          const overall = Math.round(model.avgAccuracy * 100);
           return (
             <div key={model.modelId}>
               <button
-                className={`flex w-full items-center gap-3 rounded-sm px-2 py-3.5 text-left transition-colors hover:bg-accent/10 ${isOpen ? "bg-accent/5" : ""}`}
+                className={`flex w-full items-center gap-4 rounded-sm px-2 py-4 text-left transition-colors hover:bg-accent/10 ${isOpen ? "bg-accent/5" : ""}`}
                 onClick={() => setOpenModel(isOpen ? null : model.modelId)}
               >
                 <span className="w-7 shrink-0 font-mono text-xs text-muted-foreground/20">
@@ -280,21 +227,24 @@ function ModelsTab({ models }: { models: ModelAggregate[] }) {
                     <span className="h-4 w-4 shrink-0" />
                   );
                 })()}
-                <span className="flex-1 text-sm font-medium">{model.displayName}</span>
-                {SUBJECTS.map((s) => {
-                  const pct = Math.round(model.subjectAvgs[s] * 100);
-                  return (
-                    <span
-                      key={s}
-                      className={`hidden w-14 shrink-0 text-right text-xs tabular-nums sm:block ${SUBJECT_TEXT[s]}`}
-                    >
-                      {pct}%
-                    </span>
-                  );
-                })}
-                <AccuracyBar pct={overall} />
-                <span className="w-12 shrink-0 text-right text-sm font-semibold tabular-nums">
-                  {overall}%
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-medium">{model.displayName}</span>
+                  {model.parameterCount && (
+                    <span className="block text-[10px] text-muted-foreground/30">{model.parameterCount}</span>
+                  )}
+                </span>
+                {/* score bar — wider and more prominent */}
+                <div className="relative h-[3px] w-32 shrink-0 bg-muted sm:w-48">
+                  <motion.div
+                    className="absolute inset-y-0 left-0 bg-foreground/50"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${model.avgScore / 10}%` }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                  />
+                </div>
+                <span className="w-20 shrink-0 text-right tabular-nums">
+                  <span className="text-base font-semibold">{model.avgScore}</span>
+                  <span className="ml-0.5 text-[10px] font-normal text-muted-foreground/30">pts</span>
                 </span>
                 <span className="hidden w-8 shrink-0 text-right text-xs text-muted-foreground/25 tabular-nums sm:block">
                   {model.runCount}
@@ -317,51 +267,6 @@ function ModelsTab({ models }: { models: ModelAggregate[] }) {
   );
 }
 
-// ── Hardware tab ──────────────────────────────────────────────────────────────
-
-function HardwareTab({ rows }: { rows: SpeedRow[] }) {
-  return (
-    <div className="flex flex-col gap-4">
-      <p className="text-xs text-muted-foreground/40">
-        fastest devices · tokens per second · sign in to appear
-      </p>
-      {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground/50">no runs yet</p>
-      ) : (
-        <div className="divide-y divide-border/15">
-          {rows.map((row, i) => (
-            <Link
-              key={row.id}
-              href={`/report/${row.id}`}
-              className="flex items-center gap-4 px-2 py-3.5 transition-colors hover:bg-accent/10"
-            >
-              <span className="w-7 shrink-0 font-mono text-xs text-muted-foreground/20">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="truncate text-sm font-medium">
-                  {row.gpu_device && row.gpu_device !== "unknown"
-                    ? row.gpu_device
-                    : DEVICE_CLASS_LABELS[row.device_class ?? "unknown"] ?? "unknown device"}
-                </span>
-                <span className="text-[10px] text-muted-foreground/35">
-                  {row.browser} · {row.os} · {row.model_display_name}
-                </span>
-              </div>
-              <span className="shrink-0 text-xs text-muted-foreground/35">
-                {row.profiles?.username ?? "—"}
-              </span>
-              <span className="shrink-0 text-sm font-semibold tabular-nums">
-                {row.tokens_per_second.toFixed(1)}
-                <span className="ml-1 text-xs font-normal text-muted-foreground/40">tok/s</span>
-              </span>
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ── Recent tab ────────────────────────────────────────────────────────────────
 
@@ -376,32 +281,30 @@ function RecentTab({ rows }: { rows: RecentRow[] }) {
         <p className="text-sm text-muted-foreground/50">no runs yet</p>
       ) : (
         <div className="divide-y divide-border/15">
-          {rows.map((row) => {
-            const pct = Math.round(row.accuracy * 100);
-            return (
-              <Link
-                key={row.id}
-                href={`/report/${row.id}`}
-                className="flex items-center gap-4 px-2 py-3.5 transition-colors hover:bg-accent/10"
-              >
-                <span className="flex-1 text-sm font-medium">{row.model_display_name}</span>
-                {row.tokens_per_second != null && (
-                  <span className="shrink-0 text-xs text-muted-foreground/35 tabular-nums">
-                    {row.tokens_per_second.toFixed(1)} tok/s
-                  </span>
-                )}
-                <span className="shrink-0 text-xs text-muted-foreground/35">
-                  {row.profiles?.username ?? "—"}
+          {rows.map((row) => (
+            <Link
+              key={row.id}
+              href={`/report/${row.id}`}
+              className="flex items-center gap-4 px-2 py-3.5 transition-colors hover:bg-accent/10"
+            >
+              <span className="flex-1 text-sm font-medium">{row.model_display_name}</span>
+              {row.tokens_per_second != null && (
+                <span className="shrink-0 text-xs text-muted-foreground/35 tabular-nums">
+                  {row.tokens_per_second.toFixed(1)} tok/s
                 </span>
-                <span className="shrink-0 text-xs text-muted-foreground/25">
-                  {formatTimeAgo(row.completed_at)}
-                </span>
-                <span className="w-12 shrink-0 text-right text-sm font-semibold tabular-nums">
-                  {pct}%
-                </span>
-              </Link>
-            );
-          })}
+              )}
+              <span className="shrink-0 text-xs text-muted-foreground/35">
+                {"anonymous"}
+              </span>
+              <span className="shrink-0 text-xs text-muted-foreground/25">
+                {formatTimeAgo(row.completed_at)}
+              </span>
+              <span className="w-16 shrink-0 text-right text-sm font-semibold tabular-nums">
+                {row.score ?? "—"}
+                {row.score != null && <span className="ml-0.5 text-[10px] font-normal text-muted-foreground/30">pts</span>}
+              </span>
+            </Link>
+          ))}
         </div>
       )}
     </div>
@@ -410,15 +313,13 @@ function RecentTab({ rows }: { rows: RecentRow[] }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-type Tab = "models" | "hardware" | "recent";
+type Tab = "models" | "recent";
 
 export function LeaderboardClient({
   models,
-  initialSpeed,
   initialRecent,
 }: {
   models: ModelAggregate[];
-  initialSpeed: SpeedRow[];
   initialRecent: RecentRow[];
 }) {
   const [tab, setTab] = useState<Tab>("models");
@@ -443,7 +344,6 @@ export function LeaderboardClient({
 
   const TABS: { id: Tab; label: string }[] = [
     { id: "models", label: "models" },
-    { id: "hardware", label: "hardware" },
     { id: "recent", label: "recent" },
   ];
 
@@ -466,9 +366,8 @@ export function LeaderboardClient({
         ))}
       </div>
 
-      {tab === "models"   && <ModelsTab models={models} />}
-      {tab === "hardware" && <HardwareTab rows={initialSpeed} />}
-      {tab === "recent"   && <RecentTab rows={recent} />}
+      {tab === "models" && <ModelsTab models={models} />}
+      {tab === "recent" && <RecentTab rows={recent} />}
     </div>
   );
 }
