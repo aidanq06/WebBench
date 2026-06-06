@@ -4,22 +4,6 @@ benchmarks small language models (0.6B–8B) on MMLU-style multiple-choice quest
 
 you get an accuracy score with a 95% Wilson confidence interval, the full raw output for every question, and a shareable report. runs are anonymously added to a public results page.
 
-## running locally
-
-```bash
-npm install
-npm run dev
-```
-
-needs a `.env.local` for the results page and saved runs:
-
-```
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-```
-
-without it, inference still works and runs fall back to localStorage.
-
 ## stack
 
 next.js, react, tailwind, framer motion, zustand, @mlc-ai/web-llm, supabase.
