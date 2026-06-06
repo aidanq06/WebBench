@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { AnimatePresence, motion, animate, useMotionValue } from "framer-motion";
-import { ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { QUESTIONS } from "@/lib/benchmark/questions";
 import { QuestionText } from "@/components/benchmark/QuestionText";
+import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
+import { EASE } from "@/lib/motion";
 import type { Subject, Difficulty } from "@/types/agent";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -14,10 +15,10 @@ const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
 const PAGE_SIZE = 15;
 
 const SUBJECT_DOT: Record<Subject, string> = {
-  cs:          "bg-blue-500",
-  engineering: "bg-orange-500",
-  math:        "bg-emerald-500",
-  science:     "bg-purple-500",
+  cs:          "bg-blue-500/70",
+  engineering: "bg-orange-500/70",
+  math:        "bg-emerald-500/70",
+  science:     "bg-purple-500/70",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -35,31 +36,40 @@ function plainPreview(text: string): string {
     .slice(0, 220);
 }
 
-// ── Stagger helper ────────────────────────────────────────────────────────────
+// ── Filter button row ─────────────────────────────────────────────────────────
 
-const fadeUp = (delay: number) => ({
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.35, delay, ease: "easeOut" as const },
-});
-
-// ── Animated count ────────────────────────────────────────────────────────────
-
-function AnimatedCount({ value }: { value: number }) {
-  const mv = useMotionValue(value);
-  const [display, setDisplay] = useState(value);
-
-  useEffect(() => {
-    const controls = animate(mv, value, {
-      duration: 0.25,
-      ease: "easeInOut",
-      onUpdate: (v) => setDisplay(Math.round(v)),
-    });
-    return () => controls.stop();
-  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
-
+function FilterRow<T extends string>({
+  label,
+  options,
+  active,
+  onSelect,
+}: {
+  label: string;
+  options: T[];
+  active: T;
+  onSelect: (v: T) => void;
+}) {
   return (
-    <span className="text-3xl font-semibold tabular-nums">{display}</span>
+    <div className="flex flex-col gap-3">
+      <p className="font-mono text-[10px] uppercase tracking-widest text-[--fg-subtle]">{label}</p>
+      <div className="flex flex-wrap items-center gap-0 text-sm">
+        {options.map((opt, i) => (
+          <span key={opt} className="flex items-center">
+            {i > 0 && <span className="mx-2 text-muted-foreground/15"> · </span>}
+            <button
+              onClick={() => onSelect(opt)}
+              className={`transition-colors duration-150 ${
+                active === opt
+                  ? "font-medium text-foreground"
+                  : "text-muted-foreground/35 hover:text-muted-foreground"
+              }`}
+            >
+              {opt}
+            </button>
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -80,82 +90,38 @@ function Configurator({
   onDifficulty: (d: Difficulty | "all") => void;
   onBrowse: () => void;
 }) {
-
   return (
     <div className="flex flex-col gap-10">
-      {/* heading */}
-      <motion.div {...fadeUp(0)} className="flex flex-col gap-1">
-        <h1 className="text-2xl font-medium tracking-tight">question bank</h1>
-        <p className="text-sm text-muted-foreground/50">
-          {QUESTIONS.length} questions · mmlu
-        </p>
-      </motion.div>
+      <FilterRow
+        label="subject"
+        options={["all", ...SUBJECTS] as (Subject | "all")[]}
+        active={activeSubject}
+        onSelect={onSubject}
+      />
 
-      {/* subject */}
-      <motion.div {...fadeUp(0.12)} className="flex flex-col gap-3">
-        <p className="text-[10px] uppercase tracking-widest text-muted-foreground/30">subject</p>
-        <div className="flex flex-wrap items-center gap-0 text-sm">
-          {(["all", ...SUBJECTS] as (Subject | "all")[]).map((s, i) => (
-            <span key={s} className="flex items-center">
-              {i > 0 && <span className="mx-2 text-muted-foreground/15"> · </span>}
-              <button
-                onClick={() => onSubject(s)}
-                className={`transition-colors duration-150 ${
-                  activeSubject === s
-                    ? "font-medium text-foreground"
-                    : "text-muted-foreground/35 hover:text-muted-foreground"
-                }`}
-              >
-                {s}
-              </button>
-            </span>
-          ))}
-        </div>
-      </motion.div>
+      <FilterRow
+        label="difficulty"
+        options={["all", ...DIFFICULTIES] as (Difficulty | "all")[]}
+        active={activeDifficulty}
+        onSelect={onDifficulty}
+      />
 
-      {/* difficulty */}
-      <motion.div {...fadeUp(0.20)} className="flex flex-col gap-3">
-        <p className="text-[10px] uppercase tracking-widest text-muted-foreground/30">difficulty</p>
-        <div className="flex flex-wrap items-center gap-0 text-sm">
-          {(["all", ...DIFFICULTIES] as (Difficulty | "all")[]).map((d, i) => (
-            <span key={d} className="flex items-center">
-              {i > 0 && <span className="mx-2 text-muted-foreground/15"> · </span>}
-              <button
-                onClick={() => onDifficulty(d)}
-                className={`transition-colors duration-150 ${
-                  activeDifficulty === d
-                    ? "font-medium text-foreground"
-                    : "text-muted-foreground/35 hover:text-muted-foreground"
-                }`}
-              >
-                {d}
-              </button>
-            </span>
-          ))}
-        </div>
-      </motion.div>
-
-      {/* count + browse */}
-      <motion.div {...fadeUp(0.28)} className="flex flex-col gap-5">
+      <div className="flex flex-col gap-5">
         <div className="flex items-baseline gap-2">
-          <AnimatedCount value={matchCount} />
-          <motion.span
-            layout
-            transition={{ duration: 0.3, ease: "easeOut" }}
-            className="text-sm text-muted-foreground/50"
-          >
-            questions match
-          </motion.span>
+          <span className="text-3xl font-medium tabular-nums">
+            <AnimatedNumber value={matchCount} duration={0.25} />
+          </span>
+          <span className="text-sm text-muted-foreground/50">questions match</span>
         </div>
 
         <motion.button
           onClick={onBrowse}
-          whileTap={{ scale: 0.98 }}
-          className="w-full border py-4 text-sm transition-colors hover:bg-accent/20"
+          whileTap={{ scale: 0.99 }}
+          className="w-full border py-4 text-sm transition-colors hover:bg-foreground/[0.03]"
         >
           browse →
         </motion.button>
-      </motion.div>
+      </div>
     </div>
   );
 }
@@ -196,49 +162,42 @@ function Browse({
     <div className="flex flex-col gap-8">
       {/* header row */}
       <div className="flex items-center justify-between">
-        <motion.button
+        <button
           onClick={onBack}
-          whileHover={{ x: -2 }}
-          transition={{ duration: 0.15 }}
-          className="text-sm text-muted-foreground/40 transition-colors hover:text-muted-foreground"
+          className="text-xs text-[--fg-subtle] transition-colors hover:text-muted-foreground"
         >
           ← back
-        </motion.button>
-        <span className="text-xs text-muted-foreground/35">
-          {filterLabel} · {matchCount} questions
+        </button>
+        <span className="font-mono text-[10px] text-[--fg-subtle]">
+          {filterLabel} · {matchCount}
         </span>
       </div>
 
       {/* question rows */}
-      <motion.div
-        key={page}
-        className="divide-y divide-border/20"
-      >
-        {paginated.map((q, i) => {
+      <motion.div key={page} className="flex flex-col divide-y divide-[--border]">
+        {paginated.map((q) => {
           const isOpen = openId === q.id;
           return (
-            <motion.div
-              key={q.id}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25, delay: i * 0.03, ease: "easeOut" }}
-            >
+            <div key={q.id}>
               <button
-                className="flex w-full items-start gap-3 px-1 py-3 text-left transition-colors hover:bg-accent/10"
+                className="flex w-full items-start gap-3 py-3 text-left transition-colors hover:bg-foreground/[0.02]"
                 onClick={() => setOpenId(isOpen ? null : q.id)}
               >
-                <span className={`mt-1 shrink-0 h-[5px] w-[5px] rounded-full ${SUBJECT_DOT[q.subject]}`} />
+                <span
+                  className={`mt-[7px] shrink-0 h-[5px] w-[5px] rounded-full ${SUBJECT_DOT[q.subject]}`}
+                />
                 <span className="flex-1 line-clamp-2 text-sm text-muted-foreground">
                   {plainPreview(q.text)}
                 </span>
-                <span className="mt-0.5 shrink-0 text-xs text-muted-foreground/35">{q.difficulty}</span>
-                <span className="mt-0.5 shrink-0 font-mono text-[10px] text-muted-foreground/20">{q.id}</span>
+                <span className="mt-0.5 shrink-0 font-mono text-[10px] text-[--fg-subtle]">
+                  {q.difficulty}
+                </span>
                 <motion.span
                   animate={{ rotate: isOpen ? 90 : 0 }}
                   transition={{ duration: 0.18 }}
-                  className="shrink-0 text-muted-foreground/30"
+                  className="mt-0.5 shrink-0 font-mono text-[10px] text-[--fg-subtle]"
                 >
-                  <ChevronRight className="h-3.5 w-3.5" />
+                  ›
                 </motion.span>
               </button>
 
@@ -249,32 +208,36 @@ function Browse({
                     initial={{ height: 0 }}
                     animate={{ height: "auto" }}
                     exit={{ height: 0 }}
-                    transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+                    transition={{ duration: 0.22, ease: "easeInOut" }}
                     className="overflow-hidden"
                   >
                     <motion.div
-                      initial={{ opacity: 0, y: 8 }}
+                      initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
-                      transition={{ duration: 0.22, delay: 0.14, ease: "easeOut" }}
-                      className="ml-4 border-l-2 border-border/30 pl-5 py-5"
+                      transition={{ duration: 0.2, delay: 0.1, ease: EASE }}
+                      className="border-l border-[--border] ml-4 pl-5 py-5"
                     >
-                      <QuestionText text={q.text} choices={q.choices} highlightCorrect={q.expectedAnswer} />
-                      <p className="mt-4 font-mono text-xs text-muted-foreground/40">
+                      <QuestionText
+                        text={q.text}
+                        choices={q.choices}
+                        highlightCorrect={q.expectedAnswer}
+                      />
+                      <p className="mt-4 font-mono text-[10px] text-[--fg-subtle]">
                         answer: {q.expectedAnswer}
                       </p>
                     </motion.div>
                   </motion.div>
                 )}
               </AnimatePresence>
-            </motion.div>
+            </div>
           );
         })}
       </motion.div>
 
       {/* pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-xs text-muted-foreground/35">
+        <div className="flex items-center justify-between font-mono text-xs text-[--fg-subtle]">
           <button
             onClick={() => { setPage((p) => p - 1); setOpenId(null); }}
             disabled={page === 0}
@@ -300,6 +263,12 @@ function Browse({
 
 type Stage = "configure" | "browse";
 
+const slideVariants = {
+  enter: (back: boolean) => ({ opacity: 0, y: back ? -12 : 12 }),
+  center: { opacity: 1, y: 0 },
+  exit: (back: boolean) => ({ opacity: 0, y: back ? 12 : -12 }),
+};
+
 export function TaskPreviewGrid() {
   const [stage, setStage] = useState<Stage>("configure");
   const [goingBack, setGoingBack] = useState(false);
@@ -312,68 +281,45 @@ export function TaskPreviewGrid() {
     return ms && md;
   }).length;
 
-  function enterBrowse() {
-    setGoingBack(false);
-    setStage("browse");
-  }
-
-  function goBack() {
-    setGoingBack(true);
-    setStage("configure");
-  }
-
-  // forward:  configure exits y:-12, browse enters y:12
-  // backward: browse exits y:12, configure enters y:-12
-  const variants = {
-    enter: (back: boolean) => ({ opacity: 0, y: back ? -12 : 12 }),
-    center: { opacity: 1, y: 0 },
-    exit: (back: boolean) => ({ opacity: 0, y: back ? 12 : -12 }),
-  };
-
   return (
-    <section className="px-6 py-16">
-      <div className="mx-auto max-w-2xl">
-        <AnimatePresence mode="wait" custom={goingBack}>
-          {stage === "configure" ? (
-            <motion.div
-              key="configure"
-              custom={goingBack}
-              variants={variants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{ duration: 0.22, ease: "easeOut" }}
-              className="mx-auto max-w-sm"
-            >
-              <Configurator
-                activeSubject={activeSubject}
-                activeDifficulty={activeDifficulty}
-                matchCount={matchCount}
-                onSubject={setActiveSubject}
-                onDifficulty={setActiveDifficulty}
-                onBrowse={enterBrowse}
-              />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="browse"
-              custom={goingBack}
-              variants={variants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{ duration: 0.22, ease: "easeOut" }}
-            >
-              <Browse
-                activeSubject={activeSubject}
-                activeDifficulty={activeDifficulty}
-                matchCount={matchCount}
-                onBack={goBack}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </section>
+    <AnimatePresence mode="wait" custom={goingBack}>
+      {stage === "configure" ? (
+        <motion.div
+          key="configure"
+          custom={goingBack}
+          variants={slideVariants}
+          initial="enter"
+          animate="center"
+          exit="exit"
+          transition={{ duration: 0.22, ease: "easeOut" }}
+        >
+          <Configurator
+            activeSubject={activeSubject}
+            activeDifficulty={activeDifficulty}
+            matchCount={matchCount}
+            onSubject={setActiveSubject}
+            onDifficulty={setActiveDifficulty}
+            onBrowse={() => { setGoingBack(false); setStage("browse"); }}
+          />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="browse"
+          custom={goingBack}
+          variants={slideVariants}
+          initial="enter"
+          animate="center"
+          exit="exit"
+          transition={{ duration: 0.22, ease: "easeOut" }}
+        >
+          <Browse
+            activeSubject={activeSubject}
+            activeDifficulty={activeDifficulty}
+            matchCount={matchCount}
+            onBack={() => { setGoingBack(true); setStage("configure"); }}
+          />
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

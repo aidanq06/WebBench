@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useBenchmarkStore } from "@/store/benchmark-store";
 import { loadModel } from "@/lib/webllm/engine-client";
 import { runQABenchmark } from "@/lib/benchmark/qa-runner";
+import { runDemoBenchmark } from "@/lib/benchmark/demo-runner";
 import { ModelSelector } from "@/components/benchmark/ModelSelector";
 import { BenchmarkProgress } from "@/components/benchmark/BenchmarkProgress";
 import { CompatibilityGate } from "@/components/benchmark/CompatibilityGate";
@@ -67,9 +68,11 @@ function OptionRow({
   );
 }
 
+const DEMO_MODEL_ID = "Llama-3.2-3B-Instruct-q4f16_1-MLC";
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 
-function BenchmarkPageInner() {
+function BenchmarkPageInner({ isDemo = false }: { isDemo?: boolean }) {
   const router = useRouter();
   const {
     phase,
@@ -90,8 +93,11 @@ function BenchmarkPageInner() {
   const [idleStage, setIdleStage] = useState<IdleStage>("select");
   const [goingBack, setGoingBack] = useState(false);
 
+  const demoStartedRef = useRef(false);
+
   useEffect(() => {
     if (phase === "complete") useBenchmarkStore.getState().reset();
+    if (isDemo) useBenchmarkStore.getState().setModel(DEMO_MODEL_ID);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -109,28 +115,39 @@ function BenchmarkPageInner() {
   }
 
   const handleRun = useCallback(async () => {
-    const store = useBenchmarkStore.getState();
     const runId = crypto.randomUUID();
     try {
-      store.startLoading();
-      await loadModel(selectedModelId, (report) => {
-        useBenchmarkStore.getState().setLoadingProgress(report.progress, report.text);
-      });
-      await runQABenchmark(selectedModelId, store.questionCount, runId);
+      if (isDemo) {
+        await runDemoBenchmark(selectedModelId, runId);
+      } else {
+        const store = useBenchmarkStore.getState();
+        store.startLoading();
+        await loadModel(selectedModelId, (report) => {
+          useBenchmarkStore.getState().setLoadingProgress(report.progress, report.text);
+        });
+        await runQABenchmark(selectedModelId, store.questionCount, runId);
+      }
       router.push(`/report/${runId}`);
     } catch (err) {
       useBenchmarkStore.getState().setError(err instanceof Error ? err.message : String(err));
     }
-  }, [selectedModelId, router]);
+  }, [selectedModelId, router, isDemo]);
+
+  useEffect(() => {
+    if (isDemo && phase === "idle" && !demoStartedRef.current) {
+      demoStartedRef.current = true;
+      setTimeout(() => handleRun(), 300);
+    }
+  }, [isDemo, phase, handleRun]);
 
   const logo = modelLogo(selectedModelId);
 
   if (phase === "running") {
     return (
-      <div className="flex h-screen flex-col overflow-hidden">
+      <div className="flex h-[80dvh] flex-col overflow-hidden">
         <Navbar />
-        <div className="flex flex-1 flex-col items-center overflow-hidden px-6 py-6">
-          <div className="relative flex h-full w-full max-w-2xl flex-col">
+        <div className="flex flex-1 flex-col items-center justify-center overflow-hidden px-6">
+          <div className="relative flex w-full max-w-4xl flex-col">
             <BenchmarkProgress />
           </div>
         </div>
@@ -141,7 +158,7 @@ function BenchmarkPageInner() {
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
-      <div className="flex flex-1 flex-col items-center px-6 py-12">
+      <div className="flex flex-1 flex-col items-center px-8 py-16">
         <div className="flex w-full max-w-2xl flex-col gap-10">
 
           {/* ── idle: two-stage animated flow ── */}
@@ -161,11 +178,12 @@ function BenchmarkPageInner() {
                   className="flex flex-col gap-8"
                 >
                   <div>
-                    <h1 className="text-4xl font-medium tracking-tighter">select a model</h1>
+                    <h1 className="font-serif text-3xl font-medium tracking-tight">
+                      select <span className="text-muted-foreground">a model</span>
+                    </h1>
                     {hardware && (
-                      <p className="mt-2 text-xs text-muted-foreground/50">
-                        detected:{" "}
-                        {hardware.gpuDevice !== "unknown" ? hardware.gpuDevice : hardware.deviceClass !== "unknown" ? hardware.deviceClass : "unknown device"}
+                      <p className="mt-2 font-mono text-[10px] text-[--fg-subtle]">
+                        {hardware.os !== "unknown" ? `your ${hardware.os}` : "your device"}
                         {hardware.webgpuBackend !== "unknown" && ` · ${hardware.webgpuBackend}`}
                         {hardware.browser !== "unknown" && ` · ${hardware.browser}`}
                       </p>
@@ -189,28 +207,30 @@ function BenchmarkPageInner() {
                 >
                   {/* header */}
                   <div className="flex items-center justify-between">
-                    <motion.button
+                    <button
                       onClick={handleBack}
-                      whileHover={{ x: -2 }}
-                      transition={{ duration: 0.15 }}
-                      className="text-sm text-muted-foreground/40 transition-colors hover:text-muted-foreground"
+                      className="text-sm text-[--fg-subtle] transition-colors hover:text-muted-foreground"
                     >
                       ← back
-                    </motion.button>
+                    </button>
                     <div className="flex items-center gap-2">
                       {logo && <img src={logo} alt="" className="h-5 w-5 object-contain" />}
                       <span className="text-sm font-medium">{selectedModel?.displayName}</span>
                       {selectedModel && (
-                        <span className="text-xs text-muted-foreground/40">{selectedModel.parameterCount}</span>
+                        <span className="font-mono text-[10px] text-[--fg-subtle]">{selectedModel.parameterCount}</span>
                       )}
                     </div>
                   </div>
 
                   {/* count */}
                   <div className="flex flex-col gap-3">
-                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground/30">count</p>
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-[--fg-subtle]">questions</p>
                     <div className="flex items-center gap-0 text-sm">
-                      {([10, 20, 40] as const).map((n, i) => (
+                      {([
+                        { n: 3,  label: "3 · quick" },
+                        { n: 5,  label: "5"          },
+                        { n: 10, label: "10 · full"  },
+                      ] as const).map(({ n, label }, i) => (
                         <span key={n} className="flex items-center">
                           {i > 0 && <span className="mx-2 text-muted-foreground/15"> · </span>}
                           <button
@@ -221,11 +241,14 @@ function BenchmarkPageInner() {
                                 : "text-muted-foreground/35 hover:text-muted-foreground"
                             }`}
                           >
-                            {n}
+                            {label}
                           </button>
                         </span>
                       ))}
                     </div>
+                    <p className="text-[10px] text-muted-foreground/25">
+                      you can stop at any time — partial results are always valid
+                    </p>
                   </div>
 
                   {/* subject */}
@@ -308,10 +331,20 @@ function BenchmarkPageInner() {
   );
 }
 
+function BenchmarkPageWithDemo() {
+  const searchParams = useSearchParams();
+  const isDemo = searchParams.get("demo") === "true";
+  return (
+    <CompatibilityGate bypass={isDemo}>
+      <BenchmarkPageInner isDemo={isDemo} />
+    </CompatibilityGate>
+  );
+}
+
 export default function BenchmarkPage() {
   return (
-    <CompatibilityGate>
-      <BenchmarkPageInner />
-    </CompatibilityGate>
+    <Suspense>
+      <BenchmarkPageWithDemo />
+    </Suspense>
   );
 }

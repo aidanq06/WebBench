@@ -13015,14 +13015,14 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 export function getRandomQuestions(
-  count: 10 | 20 | 40,
+  count: 3 | 5 | 10,
   subjectFilter: Subject | "all" = "all",
   difficultyFilter: Difficulty | "all" = "all"
 ): Question[] {
   const SAMPLING: Record<number, Record<Subject, number>> = {
+    "3":   { cs: 1, engineering: 0, math: 1,  science: 1  },
+    "5":   { cs: 1, engineering: 1, math: 2,  science: 1  },
     "10":  { cs: 2, engineering: 2, math: 3,  science: 3  },
-    "20":  { cs: 4, engineering: 4, math: 6,  science: 6  },
-    "40":  { cs: 8, engineering: 8, math: 12, science: 12 },
   } as Record<number, Record<Subject, number>>;
 
   const subjects = (subjectFilter === "all"

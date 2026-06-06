@@ -1,5 +1,11 @@
 import { QuestionResult } from "@/types/task";
-import { BenchmarkReport, SubjectScore, DifficultyScore, HardwareInfo } from "@/types/report";
+import {
+  BenchmarkReport,
+  SubjectScore,
+  DifficultyScore,
+  HardwareInfo,
+  ConfidenceInterval,
+} from "@/types/report";
 import { Subject, Difficulty } from "@/types/agent";
 import { AVAILABLE_MODELS } from "@/lib/webllm/models";
 import { SCORING } from "./scoring-config";
@@ -7,9 +13,19 @@ import { SCORING } from "./scoring-config";
 const SUBJECTS: Subject[] = ["cs", "engineering", "math", "science"];
 const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
 
-function parseParamBillions(parameterCount: string): number {
-  const match = parameterCount.match(/^([\d.]+)B$/i);
-  return match ? parseFloat(match[1]) : 1;
+// Wilson score interval — more accurate than normal approximation for small n.
+export function wilsonInterval(correct: number, total: number): ConfidenceInterval {
+  if (total === 0) return { lower: 0, upper: 0, confidence: 0.95 };
+  const z = SCORING.ciZ;
+  const p = correct / total;
+  const denom = 1 + (z * z) / total;
+  const center = (p + (z * z) / (2 * total)) / denom;
+  const spread = (z * Math.sqrt((p * (1 - p)) / total + (z * z) / (4 * total * total))) / denom;
+  return {
+    lower: Math.max(0, center - spread),
+    upper: Math.min(1, center + spread),
+    confidence: 0.95,
+  };
 }
 
 export function generateReport(
@@ -29,11 +45,6 @@ export function generateReport(
 
   const model = AVAILABLE_MODELS.find((m) => m.id === modelId);
   const modelDisplayName = model?.displayName ?? modelId;
-  const paramBillions = model ? parseParamBillions(model.parameterCount) : 1;
-  // efficiencyScore: accuracy% / sqrt(paramBillions) — rewards small models that punch above weight
-  const efficiencyScore = parseFloat(
-    ((overallAccuracy * 100) / Math.sqrt(paramBillions)).toFixed(1)
-  );
 
   const subjectScores: SubjectScore[] = SUBJECTS.map((subject) => {
     const subset = results.filter((r) => r.subject === subject);
@@ -43,6 +54,7 @@ export function generateReport(
       correct,
       total: subset.length,
       accuracy: subset.length > 0 ? correct / subset.length : 0,
+      confidenceInterval: wilsonInterval(correct, subset.length),
     };
   }).filter((s) => s.total > 0);
 
@@ -54,15 +66,11 @@ export function generateReport(
       correct,
       total: subset.length,
       accuracy: subset.length > 0 ? correct / subset.length : 0,
+      confidenceInterval: wilsonInterval(correct, subset.length),
     };
   }).filter((s) => s.total > 0);
 
-  const { weights, scale } = SCORING;
-  const achieved = results.reduce(
-    (s, r) => s + (r.correct ? weights[r.difficulty] : 0), 0
-  );
-  const possible = results.length * weights.hard;
-  const score = possible > 0 ? Math.round((achieved / possible) * scale) : 0;
+  const score = Math.round(overallAccuracy * 100);
 
   return {
     runId,
@@ -74,8 +82,8 @@ export function generateReport(
     totalQuestions: results.length,
     avgTimeMs,
     tokensPerSecond,
-    efficiencyScore,
     score,
+    confidenceInterval: wilsonInterval(correctCount, results.length),
     hardware,
     subjectScores,
     difficultyScores,

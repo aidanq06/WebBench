@@ -8,7 +8,6 @@ import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import type { Components } from "react-markdown";
 
 const components: Components = {
-  // fenced code blocks — delegate children so <pre> doesn't double-wrap
   pre({ children }) {
     return <>{children}</>;
   },
@@ -33,7 +32,6 @@ const components: Components = {
       );
     }
 
-    // inline code or fenced block without language tag
     return (
       <code
         className="rounded-sm bg-muted px-1 py-0.5 font-mono text-[0.85em]"
@@ -46,21 +44,26 @@ const components: Components = {
 };
 
 const CHOICE_LABELS = ["A", "B", "C", "D"] as const;
+type ChoiceLetter = typeof CHOICE_LABELS[number];
 
 export function QuestionText({
   text,
   choices,
   highlightCorrect,
   highlightSelected,
+  spotlight,
 }: {
   text: string;
-  choices?: [string, string, string, string];
-  highlightCorrect?: "A" | "B" | "C" | "D";
-  highlightSelected?: "A" | "B" | "C" | "D";
+  choices?: readonly [string, string, string, string];
+  highlightCorrect?: ChoiceLetter;
+  highlightSelected?: ChoiceLetter;
+  spotlight?: ChoiceLetter | null;
 }) {
+  const reveal = !!highlightCorrect;
+
   return (
-    <span className="flex flex-col gap-3">
-      <span className="[&>p]:mb-2 [&>p:last-child]:mb-0">
+    <span className="flex flex-col gap-[0.6em]">
+      <span className="[&>p]:mb-[0.4em] [&>p:last-child]:mb-0">
         <ReactMarkdown
           remarkPlugins={[remarkMath]}
           rehypePlugins={[rehypeKatex]}
@@ -70,25 +73,30 @@ export function QuestionText({
         </ReactMarkdown>
       </span>
       {choices && (
-        <span className="flex flex-col gap-1.5 mt-1">
+        <span className="flex flex-col gap-[0.3em] mt-[0.2em]">
           {choices.map((choice, i) => {
             const label = CHOICE_LABELS[i];
             const isCorrect = label === highlightCorrect;
             const isSelected = label === highlightSelected;
             const isWrong = isSelected && !isCorrect;
+            const isSpotlit = !reveal && spotlight === label;
+            const isDimmed = !reveal && spotlight != null && spotlight !== label;
+
+            const baseClass = "flex items-center gap-[0.4em] rounded-sm px-[0.4em] py-[0.2em] text-[0.95em] leading-snug transition-all duration-300";
+            const stateClass = isCorrect
+              ? "bg-green-600/10 text-green-700 dark:text-green-400"
+              : isWrong
+                ? "bg-red-600/10 text-red-700 dark:text-red-400"
+                : isSpotlit
+                  ? "bg-foreground/[0.06] text-foreground"
+                  : isDimmed
+                    ? "text-muted-foreground opacity-40"
+                    : "text-muted-foreground";
+
             return (
-              <span
-                key={label}
-                className={`flex gap-2 rounded-sm px-2 py-1 text-sm leading-snug ${
-                  isCorrect
-                    ? "bg-green-600/10 text-green-700 dark:text-green-400"
-                    : isWrong
-                    ? "bg-red-600/10 text-red-700 dark:text-red-400"
-                    : "text-muted-foreground"
-                }`}
-              >
+              <span key={label} className={`${baseClass} ${stateClass}`}>
                 <span className="shrink-0 font-mono font-medium">{label}.</span>
-                <span>{choice}</span>
+                <span className="flex-1">{choice}</span>
               </span>
             );
           })}

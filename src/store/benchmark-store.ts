@@ -8,7 +8,7 @@ export type BenchmarkPhase = "idle" | "loading-model" | "running" | "complete" |
 interface BenchmarkStore {
   phase: BenchmarkPhase;
   selectedModelId: string;
-  questionCount: 10 | 20 | 40;
+  questionCount: 3 | 5 | 10;
   subjectFilter: Subject | "all";
   difficultyFilter: Difficulty | "all";
   advanceMode: "auto" | "manual";
@@ -27,7 +27,7 @@ interface BenchmarkStore {
   aborted: boolean;
 
   setModel: (id: string) => void;
-  setQuestionCount: (n: 10 | 20 | 40) => void;
+  setQuestionCount: (n: 3 | 5 | 10) => void;
   setSubjectFilter: (s: Subject | "all") => void;
   setDifficultyFilter: (d: Difficulty | "all") => void;
   setAdvanceMode: (m: "auto" | "manual") => void;
@@ -51,7 +51,7 @@ interface BenchmarkStore {
 export const useBenchmarkStore = create<BenchmarkStore>((set, get) => ({
   phase: "idle",
   selectedModelId: "Qwen3-0.6B-q4f16_1-MLC",
-  questionCount: 20,
+  questionCount: 3,
   subjectFilter: "all",
   difficultyFilter: "all",
   advanceMode: "auto",

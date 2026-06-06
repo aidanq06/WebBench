@@ -26,10 +26,16 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --font-serif: var(--font-serif);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
 :root {
-  --radius: 0rem;
+  --radius: 0.25rem;
+  --fg-subtle: #5A5A5A;
+  --success: #7BB582;
+  /* light mode fallbacks (app is always dark, but keep for safety) */
   --background: hsl(0 0% 100%);
   --foreground: hsl(0 0% 3.9%);
   --card: hsl(0 0% 100%);
@@ -52,36 +58,37 @@
 }
 
 .dark {
-  --background: hsl(0 0% 3.9%);
-  --foreground: hsl(0 0% 98%);
-  --card: hsl(0 0% 6%);
-  --card-foreground: hsl(0 0% 98%);
-  --popover: hsl(0 0% 3.9%);
-  --popover-foreground: hsl(0 0% 98%);
-  --primary: hsl(0 0% 98%);
-  --primary-foreground: hsl(0 0% 9%);
-  --secondary: hsl(0 0% 14.9%);
-  --secondary-foreground: hsl(0 0% 98%);
-  --muted: hsl(0 0% 14.9%);
-  --muted-foreground: hsl(0 0% 63.9%);
-  --accent: hsl(0 0% 14.9%);
-  --accent-foreground: hsl(0 0% 98%);
-  --destructive: hsl(0 62.8% 30.6%);
-  --destructive-foreground: hsl(0 0% 98%);
-  --border: hsl(0 0% 14.9%);
-  --input: hsl(0 0% 14.9%);
-  --ring: hsl(0 0% 83.1%);
+  --background:             #191919;
+  --card:                   #202020;
+  --foreground:             #ECECEC;
+  --muted-foreground:       #8A8A8A;
+  --border:                 rgba(255, 255, 255, 0.08);
+  --accent:                 #E0DFD5;
+  --accent-foreground:      #191919;
+  --destructive:            #C4756A;
+  --destructive-foreground: #ECECEC;
+  --primary:                #ECECEC;
+  --primary-foreground:     #191919;
+  --secondary:              #202020;
+  --secondary-foreground:   #ECECEC;
+  --muted:                  #202020;
+  --card-foreground:        #ECECEC;
+  --popover:                #191919;
+  --popover-foreground:     #ECECEC;
+  --ring:                   rgba(255, 255, 255, 0.12);
+  --input:                  rgba(255, 255, 255, 0.08);
 }
 
 @layer base {
   html {
     scroll-behavior: smooth;
+    zoom: 1.25;
   }
   * {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-mono antialiased;
+    @apply bg-background text-foreground font-sans antialiased;
   }
 }
 
@@ -99,3 +106,13 @@
 .animate-fade-in {
   animation: fade-in 200ms ease-out both;
 }
+
+@keyframes cursor-blink {
+  0%, 40%   { opacity: 1; }
+  60%, 100% { opacity: 0; }
+}
+
+.animate-cursor-blink {
+  animation: cursor-blink 1.05s ease-in-out infinite;
+}
+

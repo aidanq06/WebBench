@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
 import { BenchmarkReport } from "@/types/report";
 import { ReportClient } from "./report-client";
+import { wilsonInterval } from "@/lib/benchmark/scorer";
+import { getRunById } from "@/lib/supabase/queries";
 
 interface Props {
   params: Promise<{ runId: string }>;
@@ -9,21 +10,15 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { runId } = await params;
-  const supabase = await createClient();
+  const run = await getRunById(runId);
 
-  const { data } = await supabase
-    .from("reports")
-    .select("model_display_name, accuracy, correct_count, total_questions")
-    .eq("id", runId)
-    .single();
-
-  if (!data) {
+  if (!run) {
     return { title: "benchmark report · webbench" };
   }
 
-  const accuracy = Math.round(data.accuracy * 100);
-  const title = `${data.model_display_name} · ${accuracy}% · webbench`;
-  const description = `${accuracy}% accuracy on ${data.total_questions} questions (${data.correct_count} correct) — benchmarked locally in browser`;
+  const accuracy = Math.round(run.accuracy * 100);
+  const title = `${run.modelDisplayName} · ${accuracy}% accuracy · webbench`;
+  const description = `${accuracy}% on ${run.totalQuestions} questions (${run.correctCount} correct) — benchmarked locally in browser`;
   const ogImageUrl = `/api/og/${runId}`;
 
   return {
@@ -45,43 +40,43 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ReportPage({ params }: Props) {
   const { runId } = await params;
-  const supabase = await createClient();
-
-  const { data } = await supabase
-    .from("reports")
-    .select("*")
-    .eq("id", runId)
-    .single();
+  const run = await getRunById(runId);
 
   let dbReport: BenchmarkReport | null = null;
 
-  if (data) {
+  if (run) {
+    const subjectScoresRaw = (run.subjectScores ?? []) as Array<{ subject: string; correct: number; total: number; accuracy: number; confidenceInterval?: unknown }>;
+    const difficultyScoresRaw = (run.difficultyScores ?? []) as Array<{ difficulty: string; correct: number; total: number; accuracy: number; confidenceInterval?: unknown }>;
+    const subjectScores = subjectScoresRaw.map((s) => ({
+      ...s,
+      confidenceInterval: s.confidenceInterval ?? wilsonInterval(s.correct, s.total),
+    }));
+    const difficultyScores = difficultyScoresRaw.map((s) => ({
+      ...s,
+      confidenceInterval: s.confidenceInterval ?? wilsonInterval(s.correct, s.total),
+    }));
+
     dbReport = {
-      runId: data.id,
-      modelId: data.model_id,
-      modelDisplayName: data.model_display_name ?? data.model_id,
-      suiteId: data.suite_id,
-      overallAccuracy: data.accuracy,
-      correctCount: data.correct_count,
-      totalQuestions: data.total_questions,
-      avgTimeMs: data.avg_time_ms,
-      tokensPerSecond: data.tokens_per_second ?? 0,
-      efficiencyScore: data.efficiency_score ?? 0,
-      score: data.score ?? 0,
+      runId: run.runId,
+      modelId: run.modelId,
+      modelDisplayName: run.modelDisplayName,
+      suiteId: run.suiteId,
+      overallAccuracy: run.accuracy,
+      correctCount: run.correctCount,
+      totalQuestions: run.totalQuestions,
+      avgTimeMs: run.avgTimeMs,
+      tokensPerSecond: run.tokensPerSecond,
+      score: run.score,
+      confidenceInterval: wilsonInterval(run.correctCount, run.totalQuestions),
       hardware: {
-        gpuVendor: data.gpu_vendor ?? "unknown",
-        gpuDevice: data.gpu_device ?? "unknown",
-        deviceClass: data.device_class ?? "unknown",
-        cpuThreads: data.cpu_threads ?? 0,
-        browser: data.browser ?? "unknown",
-        os: data.os ?? "unknown",
-        webgpuBackend: data.webgpu_backend ?? "unknown",
+        ...run.hardware,
+        deviceClass: (run.hardware.deviceClass as BenchmarkReport["hardware"]["deviceClass"]) ?? "unknown",
         maxBufferBytes: 0,
       },
-      subjectScores: data.subject_scores,
-      difficultyScores: data.difficulty_scores,
-      questionResults: data.question_results,
-      completedAt: data.completed_at,
+      subjectScores: subjectScores as BenchmarkReport["subjectScores"],
+      difficultyScores: difficultyScores as BenchmarkReport["difficultyScores"],
+      questionResults: run.questionResults,
+      completedAt: run.completedAt,
     };
   }
 

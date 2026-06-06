@@ -1,48 +1,28 @@
 import { getRandomQuestions } from "./questions";
 import { generateReport } from "./scorer";
 import { generateStream } from "@/lib/webllm/engine-client";
+import { getFewShotMessages } from "./few-shot-examples";
+import { saveLocalRun, toPersistable } from "@/lib/storage/local-runs";
 import { useBenchmarkStore } from "@/store/benchmark-store";
 import { QuestionResult } from "@/types/task";
 import { detectHardware } from "@/lib/hardware/detect";
+import { extractAnswer } from "./answer-extractor";
 
-const SYSTEM_PROMPT = `You are a multiple-choice benchmark assistant. For each question:
-1. Think through the options carefully
-2. End your response with exactly: ANSWER: X
-
-Where X is the single letter (A, B, C, or D) of the correct option.
-The ANSWER line must contain only the letter — nothing else.`;
-
-function extractAnswer(text: string): string {
-  // 1. Preferred: explicit ANSWER line
-  let m = text.match(/ANSWER:\s*([ABCD])/i);
-  if (m) return m[1].toUpperCase();
-  // 2. "the answer is X"
-  m = text.match(/the\s+answer\s+is\s+([ABCD])\b/i);
-  if (m) return m[1].toUpperCase();
-  // 3. "answer: X" anywhere
-  m = text.match(/answer[:\s]+([ABCD])\b/i);
-  if (m) return m[1].toUpperCase();
-  // 4. Last standalone capital letter near end of response
-  const tail = text.slice(-200);
-  const letters = [...tail.matchAll(/\b([ABCD])\b/g)];
-  if (letters.length) return letters[letters.length - 1][1].toUpperCase();
-  return "";
-}
-
-function checkAnswer(extracted: string, expected: string): boolean {
-  return extracted === expected;
-}
+// One call per question. The model writes whatever it wants; afterwards we run
+// a layered extractor over the raw text to recover the chosen letter. Nothing
+// constrains the generation — the user sees exactly what the model produced,
+// including spirals, hedges, and template parroting. That's the point.
+const SYSTEM_PROMPT = `You are taking a multiple-choice exam. Each question has four options labeled A, B, C, and D. Exactly one is correct. Reason briefly, then end your response with a line in the form \`ANSWER: X\` where X is the chosen letter.`;
 
 export async function runQABenchmark(
   modelId: string,
-  questionCount: 10 | 20 | 40,
+  questionCount: 3 | 5 | 10,
   runId: string
 ): Promise<void> {
   const store = useBenchmarkStore.getState();
   const questions = getRandomQuestions(questionCount, store.subjectFilter, store.difficultyFilter);
   const results: QuestionResult[] = [];
 
-  // Detect hardware once before the run starts
   const hardware = await detectHardware();
 
   store.start(questions.length);
@@ -59,47 +39,50 @@ export async function runQABenchmark(
       .join("\n");
     const messages = [
       { role: "system", content: SYSTEM_PROMPT },
+      ...getFewShotMessages(question.subject),
       { role: "user", content: `${question.text}\n\n${choicesText}` },
     ];
 
     const startTime = Date.now();
-    let modelResponse = "";
+    let streamText = "";
 
     const controller = new AbortController();
     useBenchmarkStore.getState().setAbortStreamCallback(() => controller.abort());
 
     try {
-      modelResponse = await generateStream(
+      const sr = await generateStream(
         messages,
-        { temperature: 0.1, max_tokens: 1024, stopOnAnswerLine: true, signal: controller.signal },
+        {
+          temperature: 0.1,
+          max_tokens: 400,
+          signal: controller.signal,
+        },
         (fullText) => {
           useBenchmarkStore.getState().setStreamingText(fullText);
         }
       );
+      streamText = sr.text;
     } catch {
-      modelResponse = "";
+      // aborted or engine error — proceed with whatever text we have.
     } finally {
       useBenchmarkStore.getState().setAbortStreamCallback(null);
     }
 
-    const timeTakenMs = Date.now() - startTime;
-
-    // If aborted mid-stream, skip scoring this question entirely
     if (useBenchmarkStore.getState().aborted) break;
 
-    totalCharsGenerated += modelResponse.length;
+    const { letter, source } = extractAnswer(streamText, question.choices);
+    const timeTakenMs = Date.now() - startTime;
+    totalCharsGenerated += streamText.length;
     totalInferenceMs += timeTakenMs;
-
-    const extractedAnswer = extractAnswer(modelResponse);
-    const correct = checkAnswer(extractedAnswer, question.expectedAnswer);
 
     const result: QuestionResult = {
       questionId: question.id,
       subject: question.subject,
       difficulty: question.difficulty,
-      correct,
-      modelResponse,
-      extractedAnswer,
+      correct: letter !== "" && letter === question.expectedAnswer,
+      modelResponse: streamText,
+      extractedAnswer: letter,
+      extractionSource: source,
       expectedAnswer: question.expectedAnswer,
       timeTakenMs,
     };
@@ -107,37 +90,30 @@ export async function runQABenchmark(
     results.push(result);
     useBenchmarkStore.getState().advanceQuestion(result);
 
-    const advanceMode = useBenchmarkStore.getState().advanceMode;
-    if (advanceMode === "manual") {
-      await new Promise<void>(resolve => {
-        useBenchmarkStore.getState().setWaitingForAdvance(true, resolve);
-      });
-    } else {
-      await new Promise(r => setTimeout(r, 1000));
-    }
+    await new Promise<void>((resolve) => {
+      useBenchmarkStore.getState().setWaitingForAdvance(true, resolve);
+    });
 
     if (useBenchmarkStore.getState().aborted) break;
   }
 
-  // ~4 chars per token is a reasonable approximation for English text
   const tokensPerSecond =
     totalInferenceMs > 0
       ? parseFloat(((totalCharsGenerated / 4) / (totalInferenceMs / 1000)).toFixed(1))
       : 0;
 
   const report = generateReport(results, modelId, String(questionCount), runId, tokensPerSecond, hardware);
-  sessionStorage.setItem(`report-${runId}`, JSON.stringify(report));
-
-  // Save to DB — fire-and-forget, local sessionStorage copy always available
-  try {
-    await fetch("/api/reports", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(report),
-    });
-  } catch {
-    // DB save failed — local sessionStorage copy still available
-  }
+  const persistable = toPersistable(report);
+  sessionStorage.setItem(`report-${runId}`, JSON.stringify(persistable));
+  saveLocalRun(persistable);
 
   useBenchmarkStore.getState().complete(report);
+
+  // Fire-and-forget share to community. Errors swallowed — a DB outage must
+  // never block the user's local report or interrupt their flow.
+  void fetch("/api/runs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(persistable),
+  }).catch(() => {});
 }
